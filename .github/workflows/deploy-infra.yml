@@ -1,0 +1,171 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'infra/**'
+    tags:
+      - 'infra-v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'production' }}
+  PROJECT_NAME: ${{ secrets.PROJECT_NAME || 'agent-runtime' }}
+
+jobs:
+  bootstrap-backend:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Get AWS Account ID
+      id: get-account-id
+      run: |
+        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        echo "account_id=$ACCOUNT_ID" >> $GITHUB_OUTPUT
+        echo "AWS_ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_ENV
+
+    - name: Bootstrap Terraform Backend
+      env:
+        PROJECT_NAME: ${{ env.PROJECT_NAME }}
+        AWS_ACCOUNT_ID: ${{ steps.get-account-id.outputs.account_id }}
+      run: |
+        chmod +x cicd/scripts/bootstrap-backend.sh
+        ./cicd/scripts/bootstrap-backend.sh \
+          "${PROJECT_NAME}-tfstate-${AWS_ACCOUNT_ID}" \
+          "${PROJECT_NAME}-tfstate-lock" \
+          "${{ env.AWS_REGION }}"
+
+    - name: Set Backend Configuration
+      id: backend-config
+      run: |
+        echo "bucket=${PROJECT_NAME}-tfstate-${AWS_ACCOUNT_ID}" >> $GITHUB_OUTPUT
+        echo "dynamodb_table=${PROJECT_NAME}-tfstate-lock" >> $GITHUB_OUTPUT
+        echo "key=${PROJECT_NAME}/terraform.tfstate" >> $GITHUB_OUTPUT
+
+  deploy-infrastructure:
+    runs-on: ubuntu-latest
+    needs: [bootstrap-backend]
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    if: github.event_name != 'pull_request'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        # Use OIDC if available, otherwise fallback to access key
+        role-to-assume: ${{ secrets.AWS_INFRA_DEPLOY_ROLE }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Get AWS Account ID
+      id: get-account-id
+      run: |
+        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        echo "account_id=$ACCOUNT_ID" >> $GITHUB_OUTPUT
+        echo "AWS_ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_ENV
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.5.0
+
+    - name: Terraform Init
+      env:
+        PROJECT_NAME: ${{ env.PROJECT_NAME }}
+        AWS_ACCOUNT_ID: ${{ steps.get-account-id.outputs.account_id }}
+      run: |
+        cd infra
+        terraform init \
+          -backend-config="bucket=${PROJECT_NAME}-tfstate-${AWS_ACCOUNT_ID}" \
+          -backend-config="dynamodb_table=${PROJECT_NAME}-tfstate-lock" \
+          -backend-config="key=${PROJECT_NAME}/terraform.tfstate" \
+          -backend-config="region=${{ env.AWS_REGION }}"
+
+    - name: Terraform Format Check
+      run: |
+        cd infra
+        terraform fmt -check -recursive
+
+    - name: Terraform Validate
+      run: |
+        cd infra
+        terraform validate
+
+    - name: Terraform Plan
+      run: |
+        cd infra
+        terraform plan \
+          -out=tfplan \
+          -var="environment=${{ env.ENVIRONMENT }}" \
+          -var="aws_region=${{ env.AWS_REGION }}" \
+          -var="project_name=${{ env.PROJECT_NAME }}"
+
+    - name: Upload Terraform Plan
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform-plan
+        path: infra/tfplan
+        retention-days: 1
+
+    - name: Terraform Apply
+      run: |
+        cd infra
+        terraform apply -auto-approve tfplan
+
+    - name: Get IAM Role ARN (First Time Setup)
+      if: success()
+      run: |
+        cd infra
+        ROLE_ARN=$(terraform output -raw github_actions_infra_role_arn 2>/dev/null || echo "")
+        if [ -n "$ROLE_ARN" ] && [ "$ROLE_ARN" != "null" ] && [ "$ROLE_ARN" != "" ]; then
+          echo "⚠️  IMPORTANT: Add this to GitHub Secrets → AWS_INFRA_DEPLOY_ROLE"
+          echo "$ROLE_ARN"
+          echo ""
+          echo "After adding the secret, future deployments will use OIDC authentication."
+          echo ""
+          echo "To add the secret:"
+          echo "1. Go to Repository Settings → Secrets → Actions"
+          echo "2. Click 'New repository secret'"
+          echo "3. Name: AWS_INFRA_DEPLOY_ROLE"
+          echo "4. Value: $ROLE_ARN"
+        fi
+
+    - name: Notify success
+      if: success()
+      run: |
+        echo "✅ Infrastructure deployed to ${{ env.ENVIRONMENT }}"
+        echo "VPC ID: $(cd infra && terraform output -raw vpc_id 2>/dev/null || echo 'N/A')"
+        echo "ECS Cluster: $(cd infra && terraform output -raw ecs_cluster_name 2>/dev/null || echo 'N/A')"
+
+    - name: Notify failure
+      if: failure()
+      run: |
+        echo "❌ Infrastructure deployment failed for ${{ env.ENVIRONMENT }}"
+        exit 1
+

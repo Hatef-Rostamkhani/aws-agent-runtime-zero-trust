@@ -1,0 +1,23 @@
+# Project Configuration
+project_name = "agent-runtime"
+environment  = "staging"
+
+# AWS Configuration
+aws_region = "us-east-1"
+
+# VPC Configuration
+vpc_cidr = "10.0.0.0/16"
+
+# Availability Zones (leave empty to use all available AZs in region)
+availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"]
+
+# Terraform Backend Configuration
+# These should be set via backend-config.tfvars or environment variables
+# terraform_state_bucket = "your-terraform-state-bucket"
+# terraform_state_dynamodb_table = "terraform-state-lock"
+# terraform_state_key = "agent-runtime/terraform.tfstate"
+
+# GitHub OIDC Configuration (optional, for CI/CD)
+# github_org = "your-github-org"
+# github_repo = "your-repo-name"
+
