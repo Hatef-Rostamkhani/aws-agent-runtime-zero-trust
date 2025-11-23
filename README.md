@@ -63,7 +63,10 @@ Production-grade AWS infrastructure implementing zero-trust security principles 
 │   ├── security.md                # Zero-trust security model
 │   └── runbook.md                 # Operations runbook
 └── scripts/                       # Utility scripts
-    └── setup.sh                   # Initial setup script
+    ├── setup.sh                   # Initial project setup
+    ├── setup-terraform-backend.sh # Setup S3 & DynamoDB for Terraform state
+    ├── first-deploy.sh            # First infrastructure deployment
+    └── README.md                  # Scripts documentation
 ```
 
 ## Implementation Tasks
@@ -114,13 +117,28 @@ export AWS_PROFILE=your-profile
 export AWS_REGION=us-east-1
 ```
 
-3. **Deploy Infrastructure**
+3. **Setup Terraform Backend (First Time Only)**
 ```bash
-cd infra
-terraform init
-terraform plan -out=tfplan
-terraform apply tfplan
+# This creates S3 bucket and DynamoDB table for Terraform state
+./scripts/setup-terraform-backend.sh
 ```
+
+4. **First Infrastructure Deployment**
+```bash
+# This deploys infrastructure and creates IAM roles for GitHub Actions
+./scripts/first-deploy.sh
+```
+
+5. **Configure GitHub Secrets**
+After first deployment, add these secrets to GitHub:
+- `AWS_REGION`: us-east-1
+- `TERRAFORM_STATE_BUCKET`: (from setup script output)
+- `TERRAFORM_STATE_DYNAMODB_TABLE`: (from setup script output)
+- `TERRAFORM_STATE_KEY`: agent-runtime/terraform.tfstate
+- `AWS_INFRA_DEPLOY_ROLE`: (from terraform output after first deploy)
+
+6. **Future Deployments**
+After initial setup, infrastructure will deploy automatically via GitHub Actions when you push changes to `infra/` directory.
 
 4. **Build and Deploy Services**
 ```bash
