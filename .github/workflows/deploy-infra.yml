@@ -25,7 +25,7 @@ env:
 jobs:
   deploy-infrastructure:
     runs-on: ubuntu-latest
-    environment: ${{ env.ENVIRONMENT }}
+    environment: ${{ github.event.inputs.environment || 'production' }}
 
     steps:
     - name: Checkout code
