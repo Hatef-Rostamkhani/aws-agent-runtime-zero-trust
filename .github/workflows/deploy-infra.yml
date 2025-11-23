@@ -69,16 +69,36 @@ jobs:
     needs: [bootstrap-backend]
     environment: ${{ github.event.inputs.environment || 'production' }}
     if: github.event_name != 'pull_request'
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Configure AWS credentials
+    - name: Check if OIDC role exists
+      id: check-oidc
+      run: |
+        if [ -n "${{ secrets.AWS_INFRA_DEPLOY_ROLE }}" ]; then
+          echo "use_oidc=true" >> $GITHUB_OUTPUT
+        else
+          echo "use_oidc=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Configure AWS credentials (OIDC)
+      id: configure-oidc
+      if: steps.check-oidc.outputs.use_oidc == 'true'
+      continue-on-error: false
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        # Use OIDC if available, otherwise fallback to access key
         role-to-assume: ${{ secrets.AWS_INFRA_DEPLOY_ROLE }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Configure AWS credentials (Access Key Fallback)
+      if: steps.check-oidc.outputs.use_oidc == 'false' || steps.configure-oidc.outcome != 'success'
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
