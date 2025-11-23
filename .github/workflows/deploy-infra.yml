@@ -79,26 +79,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Check if OIDC role exists
-      id: check-oidc
-      run: |
-        if [ -n "${{ secrets.AWS_INFRA_DEPLOY_ROLE }}" ]; then
-          echo "use_oidc=true" >> $GITHUB_OUTPUT
-        else
-          echo "use_oidc=false" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Configure AWS credentials (OIDC)
-      id: configure-oidc
-      if: steps.check-oidc.outputs.use_oidc == 'true'
-      continue-on-error: false
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.AWS_INFRA_DEPLOY_ROLE }}
-        aws-region: ${{ env.AWS_REGION }}
-
-    - name: Configure AWS credentials (Access Key Fallback)
-      if: steps.check-oidc.outputs.use_oidc == 'false' || steps.configure-oidc.outcome != 'success'
+    - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
