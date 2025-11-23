@@ -5,6 +5,8 @@ on:
     branches: [ main ]
     paths:
       - 'infra/**'
+      - '.github/workflows/deploy-infra.yml'
+      - 'cicd/**'
     tags:
       - 'infra-v*'
   workflow_dispatch:
