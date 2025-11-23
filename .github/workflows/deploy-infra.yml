@@ -5,8 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'infra/**'
-    tags:
-      - 'infra-v*'
+      - '.github/workflows/deploy-infra.yml'
   workflow_dispatch:
     inputs:
       environment:
