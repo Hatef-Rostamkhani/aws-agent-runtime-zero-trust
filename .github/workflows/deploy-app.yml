@@ -1,11 +1,15 @@
 name: Deploy Application
 
 on:
+  workflow_run:
+    workflows: ["Build and Push"]
+    types:
+      - completed
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual trigger
   push:
     branches: [ main ]
     paths:
-      - 'services/**'
-      - 'governance/**'
       - '.github/workflows/deploy-app.yml'
       - 'cicd/scripts/**'
 
@@ -20,10 +24,19 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    
+    # Only run if build workflow succeeded (when triggered by workflow_run)
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        # When triggered by workflow_run, checkout the commit from that workflow
+        ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -39,6 +52,8 @@ jobs:
         name: governance-lambda-*
         pattern: governance-lambda-*
         merge-multiple: true
+        # When triggered by workflow_run, download from that workflow run
+        run-id: ${{ github.event.workflow_run.id || github.run_id }}
 
     - name: Deploy Governance Lambda
       if: steps.download-lambda.outcome == 'success'
