@@ -36,9 +36,9 @@ locals {
 module "networking" {
   source = "./modules/networking"
 
-  project_name      = var.project_name
-  environment       = var.environment
-  vpc_cidr          = var.vpc_cidr
+  project_name       = var.project_name
+  environment        = var.environment
+  vpc_cidr           = var.vpc_cidr
   availability_zones = local.availability_zones
 }
 
@@ -84,18 +84,18 @@ module "secrets" {
 module "iam" {
   source = "./modules/iam"
 
-  project_name         = var.project_name
-  environment          = var.environment
-  axon_kms_key_arn     = module.kms.axon_key_arn
-  orbit_kms_key_arn    = module.kms.orbit_key_arn
-  axon_secret_arn      = module.secrets.axon_secret_arn
-  orbit_secret_arn     = module.secrets.orbit_secret_arn
+  project_name          = var.project_name
+  environment           = var.environment
+  axon_kms_key_arn      = module.kms.axon_key_arn
+  orbit_kms_key_arn     = module.kms.orbit_key_arn
+  axon_secret_arn       = module.secrets.axon_secret_arn
+  orbit_secret_arn      = module.secrets.orbit_secret_arn
   governance_lambda_arn = "" # Will be added when governance is deployed
 }
 
 # Update KMS key policies with IAM role ARNs
 resource "aws_kms_key_policy" "axon" {
-  key_id = module.kms.axon_key_id
+  key_id     = module.kms.axon_key_id
   depends_on = [module.iam]
 
   policy = jsonencode({
@@ -139,7 +139,7 @@ resource "aws_kms_key_policy" "axon" {
 }
 
 resource "aws_kms_key_policy" "orbit" {
-  key_id = module.kms.orbit_key_id
+  key_id     = module.kms.orbit_key_id
   depends_on = [module.iam]
 
   policy = jsonencode({
@@ -186,9 +186,9 @@ resource "aws_kms_key_policy" "orbit" {
 module "appmesh" {
   source = "./modules/appmesh"
 
-  project_name      = var.project_name
-  environment       = var.environment
-  vpc_id           = module.networking.vpc_id
+  project_name       = var.project_name
+  environment        = var.environment
+  vpc_id             = module.networking.vpc_id
   private_subnet_ids = module.networking.private_subnet_ids
 }
 
@@ -196,10 +196,10 @@ module "appmesh" {
 module "alb" {
   source = "./modules/alb"
 
-  project_name      = var.project_name
-  environment       = var.environment
-  vpc_id           = module.networking.vpc_id
-  private_subnet_ids = module.networking.private_subnet_ids
+  project_name          = var.project_name
+  environment           = var.environment
+  vpc_id                = module.networking.vpc_id
+  private_subnet_ids    = module.networking.private_subnet_ids
   alb_security_group_id = module.security.alb_security_group_id
 }
 
@@ -207,12 +207,12 @@ module "alb" {
 module "cicd" {
   source = "./modules/cicd"
 
-  project_name = var.project_name
-  environment  = var.environment
-  github_org   = var.github_org
-  github_repo  = var.github_repo
+  project_name          = var.project_name
+  environment           = var.environment
+  github_org            = var.github_org
+  github_repo           = var.github_repo
   governance_lambda_arn = module.iam.governance_lambda_arn
-  axon_secret_arn      = module.secrets.axon_secret_arn
-  orbit_secret_arn     = module.secrets.orbit_secret_arn
+  axon_secret_arn       = module.secrets.axon_secret_arn
+  orbit_secret_arn      = module.secrets.orbit_secret_arn
 }
 
