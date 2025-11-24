@@ -1,26 +1,3 @@
-# CloudWatch Log Groups
-resource "aws_cloudwatch_log_group" "axon" {
-  name              = "/ecs/${var.project_name}-axon"
-  retention_in_days = 30
-
-  tags = {
-    Name        = "${var.project_name}-axon-logs"
-    Service     = "axon"
-    Environment = var.environment
-  }
-}
-
-resource "aws_cloudwatch_log_group" "orbit" {
-  name              = "/ecs/${var.project_name}-orbit"
-  retention_in_days = 30
-
-  tags = {
-    Name        = "${var.project_name}-orbit-logs"
-    Service     = "orbit"
-    Environment = var.environment
-  }
-}
-
 # Read task definition templates
 locals {
   axon_task_def = templatefile("${path.module}/task-definitions/axon.json", {

@@ -3,7 +3,9 @@ resource "aws_cloudwatch_log_group" "axon" {
   retention_in_days = 30
 
   tags = {
-    Name = "${var.project_name}-axon-logs"
+    Name        = "${var.project_name}-axon-logs"
+    Service     = "axon"
+    Environment = var.environment
   }
 }
 
@@ -12,7 +14,9 @@ resource "aws_cloudwatch_log_group" "orbit" {
   retention_in_days = 30
 
   tags = {
-    Name = "${var.project_name}-orbit-logs"
+    Name        = "${var.project_name}-orbit-logs"
+    Service     = "orbit"
+    Environment = var.environment
   }
 }
 
