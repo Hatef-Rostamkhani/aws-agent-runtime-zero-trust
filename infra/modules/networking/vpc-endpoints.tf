@@ -1,3 +1,6 @@
+# Data source for current AWS region
+data "aws_region" "current" {}
+
 # Security Group for VPC Endpoints
 resource "aws_security_group" "vpc_endpoints" {
   name_prefix = "${var.project_name}-vpc-endpoints-"
@@ -100,7 +103,7 @@ resource "aws_vpc_endpoint" "s3" {
   vpc_id            = aws_vpc.main.id
   service_name      = "com.amazonaws.${data.aws_region.current.name}.s3"
   vpc_endpoint_type = "Gateway"
-  route_table_ids   = concat(
+  route_table_ids = concat(
     aws_route_table.private[*].id,
     [aws_route_table.axon_runtime.id]
   )
@@ -109,7 +112,4 @@ resource "aws_vpc_endpoint" "s3" {
     Name = "${var.project_name}-s3-endpoint"
   }
 }
-
-# Data source for current AWS region
-data "aws_region" "current" {}
 
