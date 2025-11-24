@@ -39,11 +39,16 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private[count.index].id
 }
 
-# Axon Runtime Route Table (No internet access)
+# Axon Runtime Route Table (VPC Endpoints only, with NAT fallback)
 resource "aws_route_table" "axon_runtime" {
   vpc_id = aws_vpc.main.id
 
-  # No default route to internet - fully isolated
+  # Route to NAT Gateway as fallback (if VPC endpoints fail or for debugging)
+  # Note: VPC endpoints work via DNS, but NAT provides backup connectivity
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.main[0].id # Use first NAT Gateway
+  }
 
   tags = {
     Name = "${var.project_name}-axon-runtime-rt"

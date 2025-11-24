@@ -83,7 +83,7 @@ resource "aws_network_acl" "axon_runtime" {
   vpc_id     = aws_vpc.main.id
   subnet_ids = aws_subnet.axon_runtime[*].id
 
-  # Allow inbound traffic only from private subnets (for Orbit)
+  # Allow inbound traffic only from VPC (for Orbit and VPC endpoints)
   ingress {
     protocol   = "-1"
     rule_no    = 100
@@ -93,10 +93,50 @@ resource "aws_network_acl" "axon_runtime" {
     to_port    = 0
   }
 
-  # Allow outbound traffic only to private subnets
+  # Allow inbound ephemeral ports for return traffic
+  ingress {
+    protocol   = "tcp"
+    rule_no    = 110
+    action     = "allow"
+    cidr_block = var.vpc_cidr
+    from_port  = 1024
+    to_port    = 65535
+  }
+
+  # Allow outbound HTTPS to anywhere (for ECR via VPC endpoints or NAT Gateway fallback)
+  egress {
+    protocol   = "tcp"
+    rule_no    = 100
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 443
+    to_port    = 443
+  }
+
+  # Allow outbound HTTP to anywhere (for some AWS services)
+  egress {
+    protocol   = "tcp"
+    rule_no    = 110
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 80
+    to_port    = 80
+  }
+
+  # Allow outbound ephemeral ports for return traffic (from anywhere)
+  egress {
+    protocol   = "tcp"
+    rule_no    = 120
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 1024
+    to_port    = 65535
+  }
+
+  # Allow all outbound traffic within VPC (for App Mesh, service discovery)
   egress {
     protocol   = "-1"
-    rule_no    = 100
+    rule_no    = 130
     action     = "allow"
     cidr_block = var.vpc_cidr
     from_port  = 0
