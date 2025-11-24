@@ -20,6 +20,11 @@ func ReasonHandler(logger zerolog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		correlationID := middleware.GetCorrelationID(r.Context())
 
+		// Propagate correlation ID in response headers
+		if correlationID != "" {
+			w.Header().Set("X-Correlation-ID", correlationID)
+		}
+
 		response := ReasonResponse{
 			Message:   "Axon heartbeat OK",
 			Service:   "axon",
