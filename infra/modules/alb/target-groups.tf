@@ -1,8 +1,9 @@
 resource "aws_lb_target_group" "axon" {
-  name     = "${var.project_name}-axon-tg"
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = var.vpc_id
+  name        = "${var.project_name}-axon-tg"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+  target_type = "ip" # Required for ECS Fargate with awsvpc network mode
 
   health_check {
     enabled             = true
@@ -21,10 +22,11 @@ resource "aws_lb_target_group" "axon" {
 }
 
 resource "aws_lb_target_group" "orbit" {
-  name     = "${var.project_name}-orbit-tg"
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = var.vpc_id
+  name        = "${var.project_name}-orbit-tg"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+  target_type = "ip" # Required for ECS Fargate with awsvpc network mode
 
   health_check {
     enabled             = true
