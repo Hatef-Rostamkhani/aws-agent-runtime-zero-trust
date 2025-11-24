@@ -60,10 +60,24 @@ jobs:
         fi
         echo "All required secrets are set"
 
+    - name: Verify Module Directories
+      run: |
+        cd infra
+        echo "Verifying module directories exist..."
+        for module in alb appmesh cicd ecs iam kms networking secrets security; do
+          if [ ! -d "modules/$module" ]; then
+            echo "Error: modules/$module directory not found"
+            exit 1
+          fi
+          echo "✓ modules/$module exists"
+        done
+
     - name: Terraform Init
       run: |
         cd infra
-        terraform init \
+        # Clean any stale Terraform state
+        rm -rf .terraform .terraform.lock.hcl
+        terraform init -reconfigure \
           -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
           -backend-config="dynamodb_table=${{ secrets.TERRAFORM_STATE_DYNAMODB_TABLE }}" \
           -backend-config="key=${{ secrets.TERRAFORM_STATE_KEY }}"
