@@ -31,6 +31,8 @@ if [ -n "$PREVIOUS_AXON_TASK" ]; then
         --service ${PROJECT_NAME}-axon \
         --task-definition $PREVIOUS_AXON_TASK \
         --force-new-deployment > /dev/null
+elif [ -z "$PREVIOUS_AXON_TASK" ]; then
+    echo "No previous Axon task definition to rollback to"
 fi
 
 if [ -n "$PREVIOUS_ORBIT_TASK" ]; then
@@ -40,6 +42,8 @@ if [ -n "$PREVIOUS_ORBIT_TASK" ]; then
         --service ${PROJECT_NAME}-orbit \
         --task-definition $PREVIOUS_ORBIT_TASK \
         --force-new-deployment > /dev/null
+elif [ -z "$PREVIOUS_ORBIT_TASK" ]; then
+    echo "No previous Orbit task definition to rollback to"
 fi
 
 # Wait for services to stabilize

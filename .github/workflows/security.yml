@@ -94,38 +94,20 @@ jobs:
         severity: 'CRITICAL,HIGH'
         exit-code: '1'
 
-    - name: Combine Trivy Dockerfile scan results
-      if: always()
-      run: |
-        # Install jq if not available
-        if ! command -v jq &> /dev/null; then
-          sudo apt-get update && sudo apt-get install -y jq || echo "jq install failed, will use fallback"
-        fi
-        
-        # Combine SARIF files if they exist
-        if [ -f trivy-axon-dockerfile-results.sarif ] && [ -f trivy-orbit-dockerfile-results.sarif ]; then
-          # Use jq to combine SARIF files
-          if command -v jq &> /dev/null; then
-            jq -s '.[0].runs = ([.[].runs[]] | flatten) | .[0]' trivy-axon-dockerfile-results.sarif trivy-orbit-dockerfile-results.sarif > trivy-dockerfile-combined-results.sarif
-          else
-            # Simple fallback: copy first available file
-            cp trivy-axon-dockerfile-results.sarif trivy-dockerfile-combined-results.sarif
-          fi
-        elif [ -f trivy-axon-dockerfile-results.sarif ]; then
-          cp trivy-axon-dockerfile-results.sarif trivy-dockerfile-combined-results.sarif
-        elif [ -f trivy-orbit-dockerfile-results.sarif ]; then
-          cp trivy-orbit-dockerfile-results.sarif trivy-dockerfile-combined-results.sarif
-        else
-          echo "No Dockerfile scan results found"
-          touch trivy-dockerfile-combined-results.sarif
-        fi
-
-    - name: Upload Trivy Dockerfile scan results to GitHub Security tab
-      if: always() && (steps.trivy-axon-dockerfile.outcome == 'success' || steps.trivy-orbit-dockerfile.outcome == 'success')
+    - name: Upload Trivy Axon Dockerfile scan results to GitHub Security tab
+      if: always() && steps.trivy-axon-dockerfile.outcome == 'success'
       uses: github/codeql-action/upload-sarif@v4
       with:
-        sarif_file: 'trivy-dockerfile-combined-results.sarif'
-        category: 'trivy-dockerfile'
+        sarif_file: 'trivy-axon-dockerfile-results.sarif'
+        category: 'trivy-axon-dockerfile'
+        wait-for-processing: true
+
+    - name: Upload Trivy Orbit Dockerfile scan results to GitHub Security tab
+      if: always() && steps.trivy-orbit-dockerfile.outcome == 'success'
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: 'trivy-orbit-dockerfile-results.sarif'
+        category: 'trivy-orbit-dockerfile'
         wait-for-processing: true
 
     - name: Upload Trivy image scan results to GitHub Security tab

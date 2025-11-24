@@ -34,17 +34,19 @@ if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "orbit" ]; then
         --cluster $CLUSTER_NAME \
         --services ${PROJECT_NAME}-orbit \
         --query 'services[0].taskDefinition' \
-        --output text 2>/dev/null || echo "")
-    
-    if [ -n "$CURRENT_ORBIT_TASK" ]; then
+        --output text 2>/dev/null || echo "None")
+
+    if [ "$CURRENT_ORBIT_TASK" != "None" ] && [ -n "$CURRENT_ORBIT_TASK" ]; then
         echo "Current Orbit task definition: $CURRENT_ORBIT_TASK"
-        
+
         # Save current task definition for rollback
         aws ssm put-parameter \
             --name "/${PROJECT_NAME}/orbit/previous-task-def" \
             --value "$CURRENT_ORBIT_TASK" \
             --type "String" \
             --overwrite > /dev/null 2>&1 || true
+    else
+        echo "Current Orbit task definition: None (first deployment)"
     fi
 fi
 
@@ -52,15 +54,17 @@ fi
 echo "Deploying new version..."
 export PROJECT_NAME=$PROJECT_NAME
 export AWS_REGION=$AWS_REGION
-./deploy.sh production $SERVICE_NAME
+# Get the absolute path to the deploy.sh script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$SCRIPT_DIR/deploy.sh" production $SERVICE_NAME
 
 # Run health checks
 echo "Running health checks..."
-if ./health-check.sh $PROJECT_NAME $AWS_REGION; then
+if "$SCRIPT_DIR/health-check.sh" $PROJECT_NAME $AWS_REGION; then
     echo "Health checks passed. Deployment successful."
 else
     echo "Health checks failed. Rolling back..."
-    ./rollback.sh $PROJECT_NAME $AWS_REGION
+    "$SCRIPT_DIR/rollback.sh" $PROJECT_NAME $AWS_REGION
     exit 1
 fi
 
