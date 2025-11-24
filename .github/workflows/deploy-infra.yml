@@ -117,7 +117,7 @@ jobs:
       if: github.event_name != 'pull_request'
       run: |
         cd infra
-        terraform apply -auto-approve tfplan
+        terraform apply -auto-approve -parallelism=1 tfplan
 
     - name: Notify success
       if: success()
