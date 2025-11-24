@@ -57,6 +57,7 @@ logs/
 *.pem
 *.key
 secrets/
+!infra/modules/secrets/
 .env.production
 
 # AWS
