@@ -15,9 +15,9 @@ if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "axon" ]; then
         --cluster $CLUSTER_NAME \
         --services ${PROJECT_NAME}-axon \
         --query 'services[0].taskDefinition' \
-        --output text 2>/dev/null || echo "")
+        --output text 2>/dev/null || echo "None")
     
-    if [ -n "$CURRENT_AXON_TASK" ]; then
+    if [ -n "$CURRENT_AXON_TASK" ] && [ "$CURRENT_AXON_TASK" != "None" ]; then
         echo "Current Axon task definition: $CURRENT_AXON_TASK"
         
         # Save current task definition for rollback
@@ -26,6 +26,8 @@ if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "axon" ]; then
             --value "$CURRENT_AXON_TASK" \
             --type "String" \
             --overwrite > /dev/null 2>&1 || true
+    else
+        echo "Current Axon task definition: None (first deployment or service doesn't exist)"
     fi
 fi
 

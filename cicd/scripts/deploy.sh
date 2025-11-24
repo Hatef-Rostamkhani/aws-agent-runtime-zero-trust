@@ -41,19 +41,26 @@ if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "axon" ]; then
         --family ${PROJECT_NAME}-axon \
         --cli-input-json "{\"containerDefinitions\":[{\"name\":\"axon\",\"image\":\"${IMAGE_URI}:latest\",\"essential\":true,\"portMappings\":[{\"containerPort\":80,\"protocol\":\"tcp\"}]}],\"networkMode\":\"awsvpc\",\"requiresCompatibilities\":[\"FARGATE\"],\"cpu\":\"256\",\"memory\":\"512\"}" \
         --query 'taskDefinition.taskDefinitionArn' \
-        --output text 2>/dev/null || \
-    aws ecs update-service \
-        --cluster $CLUSTER_NAME \
-        --service ${PROJECT_NAME}-axon \
-        --force-new-deployment \
-        --query 'service.taskDefinition' \
         --output text)
-
-    aws ecs update-service \
+    
+    # Check if service exists before updating
+    SERVICE_EXISTS=$(aws ecs describe-services \
         --cluster $CLUSTER_NAME \
-        --service ${PROJECT_NAME}-axon \
-        --task-definition $AXON_TASK_DEF \
-        --force-new-deployment > /dev/null
+        --services ${PROJECT_NAME}-axon \
+        --query 'services[0].status' \
+        --output text 2>/dev/null || echo "INACTIVE")
+    
+    if [ "$SERVICE_EXISTS" = "ACTIVE" ]; then
+        echo "Updating Axon service with new task definition..."
+        aws ecs update-service \
+            --cluster $CLUSTER_NAME \
+            --service ${PROJECT_NAME}-axon \
+            --task-definition $AXON_TASK_DEF \
+            --force-new-deployment > /dev/null
+    else
+        echo "ERROR: Service ${PROJECT_NAME}-axon does not exist. Please deploy infrastructure first."
+        exit 1
+    fi
 fi
 
 if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "orbit" ]; then
@@ -86,19 +93,26 @@ if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "orbit" ]; then
         --family ${PROJECT_NAME}-orbit \
         --cli-input-json "{\"containerDefinitions\":[{\"name\":\"orbit\",\"image\":\"${IMAGE_URI}:latest\",\"essential\":true,\"portMappings\":[{\"containerPort\":80,\"protocol\":\"tcp\"}]}],\"networkMode\":\"awsvpc\",\"requiresCompatibilities\":[\"FARGATE\"],\"cpu\":\"256\",\"memory\":\"512\"}" \
         --query 'taskDefinition.taskDefinitionArn' \
-        --output text 2>/dev/null || \
-    aws ecs update-service \
-        --cluster $CLUSTER_NAME \
-        --service ${PROJECT_NAME}-orbit \
-        --force-new-deployment \
-        --query 'service.taskDefinition' \
         --output text)
-
-    aws ecs update-service \
+    
+    # Check if service exists before updating
+    SERVICE_EXISTS=$(aws ecs describe-services \
         --cluster $CLUSTER_NAME \
-        --service ${PROJECT_NAME}-orbit \
-        --task-definition $ORBIT_TASK_DEF \
-        --force-new-deployment > /dev/null
+        --services ${PROJECT_NAME}-orbit \
+        --query 'services[0].status' \
+        --output text 2>/dev/null || echo "INACTIVE")
+    
+    if [ "$SERVICE_EXISTS" = "ACTIVE" ]; then
+        echo "Updating Orbit service with new task definition..."
+        aws ecs update-service \
+            --cluster $CLUSTER_NAME \
+            --service ${PROJECT_NAME}-orbit \
+            --task-definition $ORBIT_TASK_DEF \
+            --force-new-deployment > /dev/null
+    else
+        echo "ERROR: Service ${PROJECT_NAME}-orbit does not exist. Please deploy infrastructure first."
+        exit 1
+    fi
 fi
 
 echo "Waiting for services to stabilize..."
