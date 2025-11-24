@@ -4,8 +4,9 @@ import time
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 
-# Set environment variable before importing handler
+# Set environment variables before importing handler
 os.environ['POLICY_TABLE_NAME'] = 'test-table'
+os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'  # Required for boto3 initialization
 
 from handler import GovernanceService, lambda_handler
 

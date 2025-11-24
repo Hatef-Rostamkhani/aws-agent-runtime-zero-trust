@@ -16,7 +16,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize AWS clients
-dynamodb = boto3.resource('dynamodb')
+# Set default region if not specified (required for boto3)
+aws_region = os.environ.get('AWS_REGION') or os.environ.get('AWS_DEFAULT_REGION') or 'us-east-1'
+dynamodb = boto3.resource('dynamodb', region_name=aws_region)
 table_name = os.environ.get('POLICY_TABLE_NAME')
 if table_name:
     table = dynamodb.Table(table_name)
