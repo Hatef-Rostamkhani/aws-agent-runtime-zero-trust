@@ -44,6 +44,22 @@ jobs:
       with:
         terraform_version: 1.5.0
 
+    - name: Validate Required Secrets
+      run: |
+        if [ -z "${{ secrets.TERRAFORM_STATE_BUCKET }}" ]; then
+          echo "Error: TERRAFORM_STATE_BUCKET secret is not set"
+          exit 1
+        fi
+        if [ -z "${{ secrets.TERRAFORM_STATE_DYNAMODB_TABLE }}" ]; then
+          echo "Error: TERRAFORM_STATE_DYNAMODB_TABLE secret is not set"
+          exit 1
+        fi
+        if [ -z "${{ secrets.TERRAFORM_STATE_KEY }}" ]; then
+          echo "Error: TERRAFORM_STATE_KEY secret is not set"
+          exit 1
+        fi
+        echo "All required secrets are set"
+
     - name: Terraform Init
       run: |
         cd infra
