@@ -17,8 +17,6 @@ resource "aws_service_discovery_service" "axon" {
 
     routing_policy = "MULTIVALUE"
   }
-
-  health_check_grace_period_seconds = 30
 }
 
 resource "aws_service_discovery_service" "orbit" {
@@ -34,8 +32,6 @@ resource "aws_service_discovery_service" "orbit" {
 
     routing_policy = "MULTIVALUE"
   }
-
-  health_check_grace_period_seconds = 30
 }
 
 resource "aws_service_discovery_service" "governance" {
@@ -51,7 +47,5 @@ resource "aws_service_discovery_service" "governance" {
 
     routing_policy = "MULTIVALUE"
   }
-
-  health_check_grace_period_seconds = 30
 }
 
