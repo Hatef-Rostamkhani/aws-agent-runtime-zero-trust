@@ -2,7 +2,7 @@ resource "aws_ecs_service" "axon" {
   name            = "${var.project_name}-axon"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.axon.arn
-  desired_count   = 0  # Start with 0, will be scaled up after images are deployed
+  desired_count   = 0 # Start with 0, will be scaled up after images are deployed
   launch_type     = "FARGATE"
 
   network_configuration {
@@ -40,7 +40,7 @@ resource "aws_ecs_service" "orbit" {
   name            = "${var.project_name}-orbit"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.orbit.arn
-  desired_count   = 0  # Start with 0, will be scaled up after images are deployed
+  desired_count   = 0 # Start with 0, will be scaled up after images are deployed
   launch_type     = "FARGATE"
 
   network_configuration {

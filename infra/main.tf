@@ -66,11 +66,11 @@ module "ecs" {
   orbit_role_arn              = module.iam.orbit_role_arn
   axon_secret_arn             = module.secrets.axon_secret_arn
   orbit_secret_arn            = module.secrets.orbit_secret_arn
-  axon_target_group_arn        = module.alb.axon_target_group_arn
-  orbit_target_group_arn       = module.alb.orbit_target_group_arn
-  service_discovery_namespace  = module.appmesh.service_discovery_namespace
-  axon_service_discovery_arn   = module.appmesh.axon_service_discovery_arn
-  orbit_service_discovery_arn  = module.appmesh.orbit_service_discovery_arn
+  axon_target_group_arn       = module.alb.axon_target_group_arn
+  orbit_target_group_arn      = module.alb.orbit_target_group_arn
+  service_discovery_namespace = module.appmesh.service_discovery_namespace
+  axon_service_discovery_arn  = module.appmesh.axon_service_discovery_arn
+  orbit_service_discovery_arn = module.appmesh.orbit_service_discovery_arn
   aws_region                  = var.aws_region
   governance_function_name    = var.governance_function_name
 }
