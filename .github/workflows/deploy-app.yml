@@ -32,6 +32,8 @@ jobs:
         aws-region: ${{ env.AWS_REGION }}
 
     - name: Download Lambda package
+      id: download-lambda
+      continue-on-error: true
       uses: actions/download-artifact@v4
       with:
         name: governance-lambda-*
@@ -39,6 +41,7 @@ jobs:
         merge-multiple: true
 
     - name: Deploy Governance Lambda
+      if: steps.download-lambda.outcome == 'success'
       run: |
         cd governance/terraform
         terraform init -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \

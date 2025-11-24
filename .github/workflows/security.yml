@@ -109,6 +109,8 @@ jobs:
             jq -s '.[0].runs = ([.[].runs[]] | flatten) | .[0]' trivy-axon-dockerfile-results.sarif trivy-orbit-dockerfile-results.sarif > trivy-dockerfile-combined-results.sarif
           else
             # Simple fallback: copy first available file
+            cp trivy-axon-dockerfile-results.sarif trivy-dockerfile-combined-results.sarif
+          fi
         elif [ -f trivy-axon-dockerfile-results.sarif ]; then
           cp trivy-axon-dockerfile-results.sarif trivy-dockerfile-combined-results.sarif
         elif [ -f trivy-orbit-dockerfile-results.sarif ]; then
