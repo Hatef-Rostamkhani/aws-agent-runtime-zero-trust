@@ -223,6 +223,50 @@ If modules aren't found:
 terraform init -upgrade
 ```
 
+### GitHub OIDC Authentication Issues
+
+If you see `Not authorized to perform sts:AssumeRoleWithWebIdentity` error:
+
+1. **Verify OIDC Provider exists:**
+   ```bash
+   aws iam list-open-id-connect-providers
+   ```
+
+2. **Check IAM Role trust policy:**
+   ```bash
+   aws iam get-role --role-name agent-runtime-github-actions-infra-role
+   aws iam get-role --role-name agent-runtime-github-actions-app-role
+   ```
+
+3. **Verify GitHub variables are set:**
+   - Ensure `github_org` and `github_repo` are set in `terraform.tfvars` or GitHub Secrets
+   - Check that the values match your actual GitHub organization and repository names
+
+4. **Check GitHub Actions permissions:**
+   - Ensure `id-token: write` permission is set in workflow
+   - Verify `contents: read` permission is set
+
+5. **Verify Role ARN in GitHub Secrets:**
+   - Check that `AWS_INFRA_DEPLOY_ROLE` secret contains the full ARN:
+     ```
+     arn:aws:iam::<ACCOUNT_ID>:role/agent-runtime-github-actions-infra-role
+     ```
+
+6. **Debug OIDC token (in GitHub Actions):**
+   Add this step temporarily to see the token subject:
+   ```yaml
+   - name: Debug OIDC Token
+     run: |
+       echo "Repository: ${{ github.repository }}"
+       echo "Environment: ${{ github.event.inputs.environment || 'production' }}"
+   ```
+
+7. **Common issues:**
+   - Role not created: Ensure `github_org` and `github_repo` are not empty
+   - Wrong ARN: Use full ARN including account ID
+   - Trust policy mismatch: Subject must match `repo:ORG/REPO:*` pattern
+   - Environment mismatch: If using GitHub Environments, ensure trust policy includes `environment:*` pattern
+
 ## Security Considerations
 
 - All resources are tagged for cost tracking and security
