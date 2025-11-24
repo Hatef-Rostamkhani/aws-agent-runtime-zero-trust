@@ -120,11 +120,24 @@ The infrastructure can be deployed automatically via GitHub Actions when changes
 
 ### Required GitHub Secrets
 
+**AWS Configuration:**
 - `AWS_REGION`: AWS region (e.g., us-east-1)
 - `AWS_INFRA_DEPLOY_ROLE`: ARN of the infrastructure deployment IAM role
+
+**Terraform Backend:**
 - `TERRAFORM_STATE_BUCKET`: S3 bucket name for Terraform state
 - `TERRAFORM_STATE_DYNAMODB_TABLE`: DynamoDB table name for state locking
 - `TERRAFORM_STATE_KEY`: S3 key prefix for state file
+
+**Terraform Variables (Optional - defaults will be used if not set):**
+- `TF_VAR_PROJECT_NAME`: Project name (default: "agent-runtime")
+- `TF_VAR_VPC_CIDR`: VPC CIDR block (default: "10.0.0.0/16")
+- `TF_VAR_AVAILABILITY_ZONES`: JSON array of availability zones (default: `["us-east-1a", "us-east-1b", "us-east-1c"]`)
+  - **Note**: For list variables, use JSON format. Example: `["us-east-1a", "us-east-1b", "us-east-1c"]`
+- `TF_VAR_GITHUB_ORG`: GitHub organization name (default: "Hatef-Rostamkhani")
+- `TF_VAR_GITHUB_REPO`: GitHub repository name (default: "aws-agent-runtime-zero-trust")
+
+**Note**: All Terraform variables use the `TF_VAR_` prefix in GitHub Secrets. The workflow automatically reads these environment variables and passes them to Terraform.
 
 ### Manual Deployment
 

@@ -63,12 +63,17 @@ jobs:
         terraform validate
 
     - name: Terraform Plan
+      env:
+        TF_VAR_project_name: ${{ secrets.TF_VAR_PROJECT_NAME || 'agent-runtime' }}
+        TF_VAR_environment: ${{ env.ENVIRONMENT }}
+        TF_VAR_aws_region: ${{ env.AWS_REGION }}
+        TF_VAR_vpc_cidr: ${{ secrets.TF_VAR_VPC_CIDR || '10.0.0.0/16' }}
+        TF_VAR_availability_zones: ${{ secrets.TF_VAR_AVAILABILITY_ZONES || '["us-east-1a", "us-east-1b", "us-east-1c"]' }}
+        TF_VAR_github_org: ${{ secrets.TF_VAR_GITHUB_ORG || 'Hatef-Rostamkhani' }}
+        TF_VAR_github_repo: ${{ secrets.TF_VAR_GITHUB_REPO || 'aws-agent-runtime-zero-trust' }}
       run: |
         cd infra
-        terraform plan \
-          -out=tfplan \
-          -var="environment=${{ env.ENVIRONMENT }}" \
-          -var="aws_region=${{ env.AWS_REGION }}"
+        terraform plan -out=tfplan
       continue-on-error: false
 
     - name: Upload Terraform Plan
