@@ -81,7 +81,7 @@ func main() {
 func (s *AxonService) loadSecrets() error {
 	secretID := os.Getenv("AXON_SECRET_ARN")
 	if secretID == "" {
-		s.logger.Warn("AXON_SECRET_ARN not set, skipping secret loading")
+		s.logger.Warn().Msg("AXON_SECRET_ARN not set, skipping secret loading")
 		return nil
 	}
 

@@ -1,5 +1,6 @@
 import json
 import os
+import time
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 
@@ -58,7 +59,11 @@ class TestGovernanceService:
     def test_evaluate_request_time_restriction(self):
         """Test time restriction evaluation."""
         with patch('handler.table') as mock_table, patch('handler.time') as mock_time:
-            mock_time.gmtime.return_value.tm_hour = 10
+            # Create a proper struct_time mock
+            mock_struct = time.struct_time((2024, 1, 1, 10, 0, 0, 0, 1, 0))
+            mock_time.gmtime.return_value = mock_struct
+            # Mock time.time() to return a float for duration calculation
+            mock_time.time.side_effect = [1000.0, 1000.001]  # start_time, end_time
             mock_table.get_item.return_value = {
                 'Item': {
                     'service': 'orbit',
@@ -78,7 +83,11 @@ class TestGovernanceService:
     def test_evaluate_request_time_restriction_denied(self):
         """Test time restriction denial."""
         with patch('handler.table') as mock_table, patch('handler.time') as mock_time:
-            mock_time.gmtime.return_value.tm_hour = 5
+            # Create a proper struct_time mock for hour 5 (outside allowed window)
+            mock_struct = time.struct_time((2024, 1, 1, 5, 0, 0, 0, 1, 0))
+            mock_time.gmtime.return_value = mock_struct
+            # Mock time.time() to return a float for duration calculation
+            mock_time.time.side_effect = [1000.0, 1000.001]  # start_time, end_time
             mock_table.get_item.return_value = {
                 'Item': {
                     'service': 'orbit',

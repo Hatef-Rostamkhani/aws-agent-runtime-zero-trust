@@ -73,6 +73,9 @@ class PolicyManager:
                 return {k: convert_to_dynamodb_format(v) for k, v in obj.items()}
             elif isinstance(obj, list):
                 return [convert_to_dynamodb_format(item) for item in obj]
+            elif isinstance(obj, bool):
+                # Booleans should be kept as-is for DynamoDB
+                return obj
             elif isinstance(obj, (int, float)):
                 return Decimal(str(obj))
             else:
