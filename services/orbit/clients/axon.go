@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	"github.com/rs/zerolog"
@@ -134,8 +133,8 @@ func (c *AxonClient) callAxonOnce(ctx context.Context, correlationID string) (st
 
 	// Sign request with SigV4
 	// For GET requests, body is nil
-	body := bytes.NewReader([]byte{})
-	_, err = c.signer.Sign(req, body, "execute-api", c.region, time.Now())
+	signBody := bytes.NewReader([]byte{})
+	_, err = c.signer.Sign(req, signBody, "execute-api", c.region, time.Now())
 	if err != nil {
 		return "", fmt.Errorf("failed to sign request: %w", err)
 	}
@@ -150,13 +149,13 @@ func (c *AxonClient) callAxonOnce(ctx context.Context, correlationID string) (st
 		return "", fmt.Errorf("axon returned status %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to read response: %w", err)
 	}
 
 	var axonResp map[string]interface{}
-	if err := json.Unmarshal(body, &axonResp); err != nil {
+	if err := json.Unmarshal(bodyBytes, &axonResp); err != nil {
 		return "", fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 

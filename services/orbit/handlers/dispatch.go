@@ -18,7 +18,7 @@ type DispatchResponse struct {
 }
 
 // DispatchHandler handles dispatch requests
-func DispatchHandler(logger zerolog.Logger, governanceClient *clients.GovernanceClient, axonClient *clients.AxonClient) http.HandlerFunc {
+func DispatchHandler(logger zerolog.Logger, governanceClient clients.GovernanceChecker, axonClient clients.AxonCaller) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		correlationID := middleware.GetCorrelationID(r.Context())
 
