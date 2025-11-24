@@ -109,29 +109,7 @@ jobs:
             jq -s '.[0].runs = ([.[].runs[]] | flatten) | .[0]' trivy-axon-dockerfile-results.sarif trivy-orbit-dockerfile-results.sarif > trivy-dockerfile-combined-results.sarif
           else
             # Fallback: use Python to combine
-            python3 << 'EOF'
-import json
-import sys
-
-files = ['trivy-axon-dockerfile-results.sarif', 'trivy-orbit-dockerfile-results.sarif']
-combined_runs = []
-
-for file in files:
-    try:
-        with open(file, 'r') as f:
-            data = json.load(f)
-            if 'runs' in data:
-                combined_runs.extend(data['runs'])
-    except:
-        pass
-
-if combined_runs:
-    with open('trivy-axon-dockerfile-results.sarif', 'r') as f:
-        base = json.load(f)
-    base['runs'] = combined_runs
-    with open('trivy-dockerfile-combined-results.sarif', 'w') as f:
-        json.dump(base, f)
-EOF
+            python3 -c "import json; files = ['trivy-axon-dockerfile-results.sarif', 'trivy-orbit-dockerfile-results.sarif']; combined_runs = []; [combined_runs.extend(json.load(open(f)).get('runs', [])) for f in files if __import__('os').path.exists(f)]; base = json.load(open('trivy-axon-dockerfile-results.sarif')) if __import__('os').path.exists('trivy-axon-dockerfile-results.sarif') else {'version': '2.1.0', '$schema': 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json', 'runs': []}; base['runs'] = combined_runs; json.dump(base, open('trivy-dockerfile-combined-results.sarif', 'w'))" || echo "Python combination failed"
           fi
         elif [ -f trivy-axon-dockerfile-results.sarif ]; then
           cp trivy-axon-dockerfile-results.sarif trivy-dockerfile-combined-results.sarif
@@ -165,29 +143,7 @@ EOF
             jq -s '.[0].runs = ([.[].runs[]] | flatten) | .[0]' trivy-axon-image-results.sarif trivy-orbit-image-results.sarif > trivy-image-combined-results.sarif
           else
             # Fallback: use Python to combine
-            python3 << 'EOF'
-import json
-import sys
-
-files = ['trivy-axon-image-results.sarif', 'trivy-orbit-image-results.sarif']
-combined_runs = []
-
-for file in files:
-    try:
-        with open(file, 'r') as f:
-            data = json.load(f)
-            if 'runs' in data:
-                combined_runs.extend(data['runs'])
-    except:
-        pass
-
-if combined_runs:
-    with open('trivy-axon-image-results.sarif', 'r') as f:
-        base = json.load(f)
-    base['runs'] = combined_runs
-    with open('trivy-image-combined-results.sarif', 'w') as f:
-        json.dump(base, f)
-EOF
+            python3 -c "import json; files = ['trivy-axon-image-results.sarif', 'trivy-orbit-image-results.sarif']; combined_runs = []; [combined_runs.extend(json.load(open(f)).get('runs', [])) for f in files if __import__('os').path.exists(f)]; base = json.load(open('trivy-axon-image-results.sarif')) if __import__('os').path.exists('trivy-axon-image-results.sarif') else {'version': '2.1.0', '$schema': 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json', 'runs': []}; base['runs'] = combined_runs; json.dump(base, open('trivy-image-combined-results.sarif', 'w'))" || echo "Python combination failed"
           fi
         elif [ -f trivy-axon-image-results.sarif ]; then
           cp trivy-axon-image-results.sarif trivy-image-combined-results.sarif
