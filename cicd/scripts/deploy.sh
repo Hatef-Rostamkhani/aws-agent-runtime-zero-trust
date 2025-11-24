@@ -36,10 +36,34 @@ if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "axon" ]; then
         --query 'repositories[0].repositoryUri' \
         --output text)
     
+    # Get execution role ARN (required for Fargate)
+    EXECUTION_ROLE_ARN=$(aws iam get-role \
+        --role-name ${PROJECT_NAME}-ecs-task-execution-role \
+        --query 'Role.Arn' \
+        --output text 2>/dev/null || echo "")
+    
+    if [ -z "$EXECUTION_ROLE_ARN" ]; then
+        echo "ERROR: Execution role ${PROJECT_NAME}-ecs-task-execution-role not found. Please deploy infrastructure first."
+        exit 1
+    fi
+    
+    # Get task role ARN
+    TASK_ROLE_ARN=$(aws iam get-role \
+        --role-name ${PROJECT_NAME}-axon-role \
+        --query 'Role.Arn' \
+        --output text 2>/dev/null || echo "")
+    
+    if [ -z "$TASK_ROLE_ARN" ]; then
+        echo "ERROR: Task role ${PROJECT_NAME}-axon-role not found. Please deploy infrastructure first."
+        exit 1
+    fi
+    
     # Register new task definition with latest image
     AXON_TASK_DEF=$(aws ecs register-task-definition \
         --family ${PROJECT_NAME}-axon \
-        --cli-input-json "{\"containerDefinitions\":[{\"name\":\"axon\",\"image\":\"${IMAGE_URI}:latest\",\"essential\":true,\"portMappings\":[{\"containerPort\":80,\"protocol\":\"tcp\"}]}],\"networkMode\":\"awsvpc\",\"requiresCompatibilities\":[\"FARGATE\"],\"cpu\":\"256\",\"memory\":\"512\"}" \
+        --execution-role-arn "$EXECUTION_ROLE_ARN" \
+        --task-role-arn "$TASK_ROLE_ARN" \
+        --cli-input-json "{\"containerDefinitions\":[{\"name\":\"axon\",\"image\":\"${IMAGE_URI}:latest\",\"essential\":true,\"portMappings\":[{\"containerPort\":80,\"protocol\":\"tcp\"}],\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"/ecs/${PROJECT_NAME}-axon\",\"awslogs-region\":\"${AWS_REGION}\",\"awslogs-stream-prefix\":\"ecs\"}}}],\"networkMode\":\"awsvpc\",\"requiresCompatibilities\":[\"FARGATE\"],\"cpu\":\"256\",\"memory\":\"512\"}" \
         --query 'taskDefinition.taskDefinitionArn' \
         --output text)
     
@@ -88,10 +112,34 @@ if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "orbit" ]; then
         --query 'repositories[0].repositoryUri' \
         --output text)
     
+    # Get execution role ARN (required for Fargate)
+    EXECUTION_ROLE_ARN=$(aws iam get-role \
+        --role-name ${PROJECT_NAME}-ecs-task-execution-role \
+        --query 'Role.Arn' \
+        --output text 2>/dev/null || echo "")
+    
+    if [ -z "$EXECUTION_ROLE_ARN" ]; then
+        echo "ERROR: Execution role ${PROJECT_NAME}-ecs-task-execution-role not found. Please deploy infrastructure first."
+        exit 1
+    fi
+    
+    # Get task role ARN
+    TASK_ROLE_ARN=$(aws iam get-role \
+        --role-name ${PROJECT_NAME}-orbit-role \
+        --query 'Role.Arn' \
+        --output text 2>/dev/null || echo "")
+    
+    if [ -z "$TASK_ROLE_ARN" ]; then
+        echo "ERROR: Task role ${PROJECT_NAME}-orbit-role not found. Please deploy infrastructure first."
+        exit 1
+    fi
+    
     # Register new task definition with latest image
     ORBIT_TASK_DEF=$(aws ecs register-task-definition \
         --family ${PROJECT_NAME}-orbit \
-        --cli-input-json "{\"containerDefinitions\":[{\"name\":\"orbit\",\"image\":\"${IMAGE_URI}:latest\",\"essential\":true,\"portMappings\":[{\"containerPort\":80,\"protocol\":\"tcp\"}]}],\"networkMode\":\"awsvpc\",\"requiresCompatibilities\":[\"FARGATE\"],\"cpu\":\"256\",\"memory\":\"512\"}" \
+        --execution-role-arn "$EXECUTION_ROLE_ARN" \
+        --task-role-arn "$TASK_ROLE_ARN" \
+        --cli-input-json "{\"containerDefinitions\":[{\"name\":\"orbit\",\"image\":\"${IMAGE_URI}:latest\",\"essential\":true,\"portMappings\":[{\"containerPort\":80,\"protocol\":\"tcp\"}],\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"/ecs/${PROJECT_NAME}-orbit\",\"awslogs-region\":\"${AWS_REGION}\",\"awslogs-stream-prefix\":\"ecs\"}}}],\"networkMode\":\"awsvpc\",\"requiresCompatibilities\":[\"FARGATE\"],\"cpu\":\"256\",\"memory\":\"512\"}" \
         --query 'taskDefinition.taskDefinitionArn' \
         --output text)
     
