@@ -1,73 +1,64 @@
-{
-  "family": "${PROJECT_NAME}-orbit",
-  "taskRoleArn": "${ORBIT_ROLE_ARN}",
-  "executionRoleArn": "${ECS_EXECUTION_ROLE_ARN}",
-  "networkMode": "awsvpc",
-  "requiresCompatibilities": ["FARGATE"],
-  "cpu": "256",
-  "memory": "512",
-  "containerDefinitions": [
-    {
-      "name": "orbit",
-      "image": "${ORBIT_ECR_REPO}:latest",
-      "essential": true,
-      "portMappings": [
-        {
-          "containerPort": 80,
-          "protocol": "tcp"
-        }
-      ],
-      "environment": [
-        {
-          "name": "AWS_REGION",
-          "value": "${AWS_REGION}"
-        },
-        {
-          "name": "ORBIT_SECRET_ARN",
-          "value": "${ORBIT_SECRET_ARN}"
-        },
-        {
-          "name": "GOVERNANCE_FUNCTION_NAME",
-          "value": "${GOVERNANCE_FUNCTION_NAME}"
-        },
-        {
-          "name": "AXON_SERVICE_URL",
-          "value": "http://axon.${NAMESPACE}/reason"
-        },
-        {
-          "name": "PORT",
-          "value": "80"
-        }
-      ],
-      "secrets": [
-        {
-          "name": "DATABASE_URL",
-          "valueFrom": "${ORBIT_SECRET_ARN}:database_url::"
-        },
-        {
-          "name": "API_KEY",
-          "valueFrom": "${ORBIT_SECRET_ARN}:api_key::"
-        }
-      ],
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-group": "/ecs/${PROJECT_NAME}-orbit",
-          "awslogs-region": "${AWS_REGION}",
-          "awslogs-stream-prefix": "ecs"
-        }
-      },
-      "healthCheck": {
-        "command": [
-          "CMD-SHELL",
-          "wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1"
-        ],
-        "interval": 30,
-        "timeout": 5,
-        "retries": 3,
-        "startPeriod": 60
+[
+  {
+    "name": "orbit",
+    "image": "${ORBIT_ECR_REPO}:latest",
+    "essential": true,
+    "portMappings": [
+      {
+        "containerPort": 80,
+        "protocol": "tcp"
       }
+    ],
+    "environment": [
+      {
+        "name": "AWS_REGION",
+        "value": "${AWS_REGION}"
+      },
+      {
+        "name": "ORBIT_SECRET_ARN",
+        "value": "${ORBIT_SECRET_ARN}"
+      },
+      {
+        "name": "GOVERNANCE_FUNCTION_NAME",
+        "value": "${GOVERNANCE_FUNCTION_NAME}"
+      },
+      {
+        "name": "AXON_SERVICE_URL",
+        "value": "http://axon.${NAMESPACE}/reason"
+      },
+      {
+        "name": "PORT",
+        "value": "80"
+      }
+    ],
+    "secrets": [
+      {
+        "name": "DATABASE_URL",
+        "valueFrom": "${ORBIT_SECRET_ARN}:database_url::"
+      },
+      {
+        "name": "API_KEY",
+        "valueFrom": "${ORBIT_SECRET_ARN}:api_key::"
+      }
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "/ecs/${PROJECT_NAME}-orbit",
+        "awslogs-region": "${AWS_REGION}",
+        "awslogs-stream-prefix": "ecs"
+      }
+    },
+    "healthCheck": {
+      "command": [
+        "CMD-SHELL",
+        "wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1"
+      ],
+      "interval": 30,
+      "timeout": 5,
+      "retries": 3,
+      "startPeriod": 60
     }
-  ]
-}
+  }
+]
 
