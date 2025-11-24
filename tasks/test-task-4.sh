@@ -136,8 +136,8 @@ fi
 
 # Test workflow file references
 echo "--- Checking workflow references ---"
-if grep -q "AWS_GITHUB_ACTIONS_APP_ROLE" .github/workflows/build.yml && \
-   grep -q "AWS_GITHUB_ACTIONS_APP_ROLE" .github/workflows/deploy-app.yml && \
+if grep -q "AWS_INFRA_DEPLOY_ROLE" .github/workflows/build.yml && \
+   grep -q "AWS_INFRA_DEPLOY_ROLE" .github/workflows/deploy-app.yml && \
    grep -q "AWS_GITHUB_ACTIONS_INFRA_ROLE" .github/workflows/deploy-infra.yml; then
   echo "✅ Workflow role references are correct"
 else
@@ -169,7 +169,7 @@ echo "🎉 Task 4 CI/CD Pipeline: PASSED (local validation)"
 echo ""
 echo "Next steps:"
 echo "1. Configure GitHub Secrets:"
-echo "   - AWS_GITHUB_ACTIONS_APP_ROLE"
+echo "   - AWS_INFRA_DEPLOY_ROLE"
 echo "   - AWS_GITHUB_ACTIONS_INFRA_ROLE"
 echo "   - AWS_REGION"
 echo "   - PROJECT_NAME"
