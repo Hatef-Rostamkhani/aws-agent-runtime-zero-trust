@@ -80,6 +80,7 @@ if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "axon" ]; then
             --cluster $CLUSTER_NAME \
             --service ${PROJECT_NAME}-axon \
             --task-definition $AXON_TASK_DEF \
+            --desired-count 2 \
             --force-new-deployment > /dev/null
     else
         echo "ERROR: Service ${PROJECT_NAME}-axon does not exist. Please deploy infrastructure first."
@@ -156,6 +157,7 @@ if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "orbit" ]; then
             --cluster $CLUSTER_NAME \
             --service ${PROJECT_NAME}-orbit \
             --task-definition $ORBIT_TASK_DEF \
+            --desired-count 2 \
             --force-new-deployment > /dev/null
     else
         echo "ERROR: Service ${PROJECT_NAME}-orbit does not exist. Please deploy infrastructure first."

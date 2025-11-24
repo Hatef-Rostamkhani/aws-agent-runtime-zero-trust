@@ -62,7 +62,7 @@ jobs:
           exit 1
         fi
         
-        # Check if ECS services exist
+        # Check if ECS services exist (they may have desired_count=0 initially)
         AXON_SERVICE=$(aws ecs describe-services \
           --cluster $CLUSTER_NAME \
           --services ${PROJECT_NAME}-axon \
@@ -75,6 +75,7 @@ jobs:
           --query 'services[0].status' \
           --output text 2>/dev/null || echo "INACTIVE")
         
+        # Services can be ACTIVE even with desired_count=0 (no tasks running)
         if [ "$AXON_SERVICE" != "ACTIVE" ] || [ "$ORBIT_SERVICE" != "ACTIVE" ]; then
           echo "::error::ECS services are not deployed."
           echo "::error::Axon service: $AXON_SERVICE"
@@ -83,6 +84,8 @@ jobs:
           echo "::error::Go to Actions > Deploy Infrastructure > Run workflow"
           exit 1
         fi
+        
+        echo "✓ ECS services exist (may have 0 tasks until images are deployed)"
         
         echo "✓ Infrastructure is deployed and ready"
 
