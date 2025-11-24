@@ -44,6 +44,48 @@ jobs:
         role-to-assume: ${{ secrets.AWS_INFRA_DEPLOY_ROLE }}
         aws-region: ${{ env.AWS_REGION }}
 
+    - name: Verify Infrastructure Exists
+      run: |
+        CLUSTER_NAME="${PROJECT_NAME}-cluster"
+        echo "Checking if infrastructure is deployed..."
+        
+        # Check if ECS cluster exists
+        CLUSTER_EXISTS=$(aws ecs describe-clusters \
+          --clusters $CLUSTER_NAME \
+          --query 'clusters[0].status' \
+          --output text 2>/dev/null || echo "INACTIVE")
+        
+        if [ "$CLUSTER_EXISTS" != "ACTIVE" ]; then
+          echo "::error::ECS cluster '$CLUSTER_NAME' does not exist."
+          echo "::error::Please deploy infrastructure first by running the 'Deploy Infrastructure' workflow."
+          echo "::error::Go to Actions > Deploy Infrastructure > Run workflow"
+          exit 1
+        fi
+        
+        # Check if ECS services exist
+        AXON_SERVICE=$(aws ecs describe-services \
+          --cluster $CLUSTER_NAME \
+          --services ${PROJECT_NAME}-axon \
+          --query 'services[0].status' \
+          --output text 2>/dev/null || echo "INACTIVE")
+        
+        ORBIT_SERVICE=$(aws ecs describe-services \
+          --cluster $CLUSTER_NAME \
+          --services ${PROJECT_NAME}-orbit \
+          --query 'services[0].status' \
+          --output text 2>/dev/null || echo "INACTIVE")
+        
+        if [ "$AXON_SERVICE" != "ACTIVE" ] || [ "$ORBIT_SERVICE" != "ACTIVE" ]; then
+          echo "::error::ECS services are not deployed."
+          echo "::error::Axon service: $AXON_SERVICE"
+          echo "::error::Orbit service: $ORBIT_SERVICE"
+          echo "::error::Please deploy infrastructure first by running the 'Deploy Infrastructure' workflow."
+          echo "::error::Go to Actions > Deploy Infrastructure > Run workflow"
+          exit 1
+        fi
+        
+        echo "✓ Infrastructure is deployed and ready"
+
     - name: Download Lambda package
       id: download-lambda
       continue-on-error: true
