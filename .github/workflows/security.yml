@@ -1,0 +1,132 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'services/**'
+      - 'governance/**'
+      - 'infra/**'
+      - '.github/workflows/security.yml'
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+  PROJECT_NAME: ${{ secrets.PROJECT_NAME || 'agent-runtime' }}
+
+jobs:
+  trivy-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      security-events: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_APP_ROLE }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Run Trivy vulnerability scanner on Axon
+      id: trivy-axon
+      uses: aquasecurity/trivy-action@master
+      continue-on-error: true
+      with:
+        scan-type: 'image'
+        image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}/axon:latest
+        format: 'sarif'
+        output: 'trivy-axon-results.sarif'
+        severity: 'CRITICAL,HIGH'
+        exit-code: '1'
+
+    - name: Run Trivy vulnerability scanner on Orbit
+      id: trivy-orbit
+      uses: aquasecurity/trivy-action@master
+      continue-on-error: true
+      with:
+        scan-type: 'image'
+        image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}/orbit:latest
+        format: 'sarif'
+        output: 'trivy-orbit-results.sarif'
+        severity: 'CRITICAL,HIGH'
+        exit-code: '1'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-axon-results.sarif'
+        wait-for-processing: true
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-orbit-results.sarif'
+        wait-for-processing: true
+
+    - name: Fail on critical vulnerabilities
+      if: steps.trivy-axon.outputs.exit-code == 1 || steps.trivy-orbit.outputs.exit-code == 1
+      run: |
+        echo "Critical or high severity vulnerabilities found"
+        exit 1
+
+  codeql-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: go,python
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v2
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+
+  checkov-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Checkov
+      uses: bridgecrewio/checkov-action@master
+      with:
+        directory: infra/
+        framework: terraform
+        output_format: cli
+        output_file_path: checkov-results.txt
+        soft_fail: true
+
+    - name: Upload Checkov results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: checkov-results
+        path: checkov-results.txt
+

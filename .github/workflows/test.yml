@@ -1,0 +1,97 @@
+name: Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'services/**'
+      - 'governance/**'
+      - '.github/workflows/test.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'services/**'
+      - 'governance/**'
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Run Axon unit tests
+      run: |
+        cd services/axon
+        go mod tidy
+        go test ./tests/unit/... -v -coverprofile=coverage.out
+        go tool cover -func=coverage.out
+
+    - name: Upload Axon coverage
+      uses: codecov/codecov-action@v3
+      if: always()
+      with:
+        file: ./services/axon/coverage.out
+        flags: axon
+        name: axon-coverage
+
+    - name: Run Orbit unit tests
+      run: |
+        cd services/orbit
+        go mod tidy
+        go test ./tests/unit/... -v -coverprofile=coverage.out
+        go tool cover -func=coverage.out
+
+    - name: Upload Orbit coverage
+      uses: codecov/codecov-action@v3
+      if: always()
+      with:
+        file: ./services/orbit/coverage.out
+        flags: orbit
+        name: orbit-coverage
+
+    - name: Run Governance unit tests
+      run: |
+        cd governance/lambda
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+        python -m pytest tests/unit/ -v --cov=. --cov-report=term-missing --cov-report=xml
+
+    - name: Upload Governance coverage
+      uses: codecov/codecov-action@v3
+      if: always()
+      with:
+        file: ./governance/lambda/coverage.xml
+        flags: governance
+        name: governance-coverage
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
+    - name: Run Orbit integration tests
+      run: |
+        cd services/orbit
+        go mod tidy
+        go test ./tests/integration/... -v
+

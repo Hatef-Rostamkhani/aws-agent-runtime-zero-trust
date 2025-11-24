@@ -1,0 +1,43 @@
+[
+  {
+    "service": "orbit",
+    "intent": "call_reasoning",
+    "enabled": true,
+    "description": "Allow Orbit to call Axon reasoning service",
+    "time_restrictions": {
+      "allowed_hours": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+    },
+    "rate_limits": {
+      "requests_per_minute": 100,
+      "requests_per_hour": 1000
+    },
+    "conditions": []
+  },
+  {
+    "service": "orbit",
+    "intent": "call_metrics",
+    "enabled": true,
+    "description": "Allow Orbit to retrieve metrics",
+    "time_restrictions": {
+      "allowed_hours": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+    },
+    "rate_limits": {
+      "requests_per_minute": 60,
+      "requests_per_hour": 500
+    },
+    "conditions": []
+  },
+  {
+    "service": "admin",
+    "intent": "manage_policies",
+    "enabled": true,
+    "description": "Allow admin to manage governance policies",
+    "time_restrictions": null,
+    "rate_limits": {
+      "requests_per_minute": 10,
+      "requests_per_hour": 100
+    },
+    "conditions": []
+  }
+]
+

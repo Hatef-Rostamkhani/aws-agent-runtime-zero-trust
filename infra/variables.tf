@@ -60,3 +60,9 @@ variable "github_repo" {
   default     = ""
 }
 
+variable "governance_function_name" {
+  description = "Governance Lambda function name (optional, defaults to project_name-governance)"
+  type        = string
+  default     = ""
+}
+

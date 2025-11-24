@@ -18,3 +18,13 @@ output "service_discovery_namespace_id" {
   value       = aws_service_discovery_private_dns_namespace.main.id
 }
 
+output "axon_service_discovery_arn" {
+  description = "Axon service discovery ARN"
+  value       = aws_service_discovery_service.axon.arn
+}
+
+output "orbit_service_discovery_arn" {
+  description = "Orbit service discovery ARN"
+  value       = aws_service_discovery_service.orbit.arn
+}
+

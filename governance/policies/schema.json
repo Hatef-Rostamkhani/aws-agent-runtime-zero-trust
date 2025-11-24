@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["service", "intent", "enabled"],
+  "properties": {
+    "service": {
+      "type": "string",
+      "description": "The service requesting access"
+    },
+    "intent": {
+      "type": "string",
+      "description": "The intent or action being requested"
+    },
+    "enabled": {
+      "type": "boolean",
+      "description": "Whether this policy is active"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of the policy"
+    },
+    "time_restrictions": {
+      "type": ["object", "null"],
+      "properties": {
+        "allowed_hours": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 23
+          }
+        }
+      }
+    },
+    "rate_limits": {
+      "type": ["object", "null"],
+      "properties": {
+        "requests_per_minute": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requests_per_hour": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "conditions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "field", "operator", "value"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["context_check"]
+          },
+          "field": {
+            "type": "string"
+          },
+          "operator": {
+            "type": "string",
+            "enum": ["equals", "not_equals", "contains", "greater_than", "less_than"]
+          },
+          "value": {
+            "type": ["string", "number", "boolean"]
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
+

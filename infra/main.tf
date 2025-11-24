@@ -55,8 +55,24 @@ module "security" {
 module "ecs" {
   source = "./modules/ecs"
 
-  project_name = var.project_name
-  environment  = var.environment
+  project_name                = var.project_name
+  environment                 = var.environment
+  vpc_id                      = module.networking.vpc_id
+  axon_runtime_subnet_ids     = module.networking.axon_runtime_subnet_ids
+  private_subnet_ids          = module.networking.private_subnet_ids
+  axon_security_group_id      = module.security.axon_security_group_id
+  orbit_security_group_id     = module.security.orbit_security_group_id
+  axon_role_arn               = module.iam.axon_role_arn
+  orbit_role_arn              = module.iam.orbit_role_arn
+  axon_secret_arn             = module.secrets.axon_secret_arn
+  orbit_secret_arn            = module.secrets.orbit_secret_arn
+  axon_target_group_arn        = module.alb.axon_target_group_arn
+  orbit_target_group_arn       = module.alb.orbit_target_group_arn
+  service_discovery_namespace  = module.appmesh.service_discovery_namespace
+  axon_service_discovery_arn   = module.appmesh.axon_service_discovery_arn
+  orbit_service_discovery_arn  = module.appmesh.orbit_service_discovery_arn
+  aws_region                  = var.aws_region
+  governance_function_name    = var.governance_function_name
 }
 
 # KMS Module (created first, policies updated after IAM roles exist)

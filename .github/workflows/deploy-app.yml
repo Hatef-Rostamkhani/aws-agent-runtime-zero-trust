@@ -1,0 +1,77 @@
+name: Deploy Application
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'services/**'
+      - 'governance/**'
+      - '.github/workflows/deploy-app.yml'
+      - 'cicd/scripts/**'
+    paths-ignore:
+      - 'infra/**'
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+  PROJECT_NAME: ${{ secrets.PROJECT_NAME || 'agent-runtime' }}
+
+jobs:
+  deploy-app:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_APP_ROLE }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Download Lambda package
+      uses: actions/download-artifact@v4
+      with:
+        name: governance-lambda-*
+        pattern: governance-lambda-*
+        merge-multiple: true
+
+    - name: Deploy Governance Lambda
+      run: |
+        cd governance/terraform
+        terraform init -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
+          -backend-config="dynamodb_table=${{ secrets.TERRAFORM_STATE_DYNAMODB_TABLE }}" \
+          -backend-config="key=governance/terraform.tfstate"
+        terraform apply -auto-approve \
+          -var="project_name=${{ env.PROJECT_NAME }}" \
+          -var="environment=production" \
+          -var="aws_region=${{ env.AWS_REGION }}"
+
+    - name: Blue-Green Deployment for Axon
+      run: |
+        chmod +x cicd/scripts/*.sh
+        cicd/scripts/deploy-blue-green.sh axon ${{ env.PROJECT_NAME }} ${{ env.AWS_REGION }}
+
+    - name: Blue-Green Deployment for Orbit
+      run: |
+        cicd/scripts/deploy-blue-green.sh orbit ${{ env.PROJECT_NAME }} ${{ env.AWS_REGION }}
+
+    - name: Run smoke tests
+      run: |
+        cicd/scripts/smoke-tests.sh ${{ env.PROJECT_NAME }} ${{ env.AWS_REGION }}
+
+    - name: Notify success
+      if: success()
+      run: |
+        cicd/scripts/notify.sh "success" "application" ${{ env.PROJECT_NAME }}
+
+    - name: Rollback on failure
+      if: failure()
+      run: |
+        cicd/scripts/rollback.sh ${{ env.PROJECT_NAME }} ${{ env.AWS_REGION }}
+        cicd/scripts/notify.sh "failure" "application" ${{ env.PROJECT_NAME }}
+
