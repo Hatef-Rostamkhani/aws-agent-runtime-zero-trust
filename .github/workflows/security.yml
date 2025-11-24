@@ -94,32 +94,116 @@ jobs:
         severity: 'CRITICAL,HIGH'
         exit-code: '1'
 
-    - name: Upload Trivy Dockerfile scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v2
+    - name: Combine Trivy Dockerfile scan results
       if: always()
-      with:
-        sarif_file: 'trivy-axon-dockerfile-results.sarif'
-        wait-for-processing: true
+      run: |
+        # Install jq if not available
+        if ! command -v jq &> /dev/null; then
+          sudo apt-get update && sudo apt-get install -y jq || echo "jq install failed, will use fallback"
+        fi
+        
+        # Combine SARIF files if they exist
+        if [ -f trivy-axon-dockerfile-results.sarif ] && [ -f trivy-orbit-dockerfile-results.sarif ]; then
+          # Use jq to combine SARIF files
+          if command -v jq &> /dev/null; then
+            jq -s '.[0].runs = ([.[].runs[]] | flatten) | .[0]' trivy-axon-dockerfile-results.sarif trivy-orbit-dockerfile-results.sarif > trivy-dockerfile-combined-results.sarif
+          else
+            # Fallback: use Python to combine
+            python3 << 'EOF'
+import json
+import sys
+
+files = ['trivy-axon-dockerfile-results.sarif', 'trivy-orbit-dockerfile-results.sarif']
+combined_runs = []
+
+for file in files:
+    try:
+        with open(file, 'r') as f:
+            data = json.load(f)
+            if 'runs' in data:
+                combined_runs.extend(data['runs'])
+    except:
+        pass
+
+if combined_runs:
+    with open('trivy-axon-dockerfile-results.sarif', 'r') as f:
+        base = json.load(f)
+    base['runs'] = combined_runs
+    with open('trivy-dockerfile-combined-results.sarif', 'w') as f:
+        json.dump(base, f)
+EOF
+          fi
+        elif [ -f trivy-axon-dockerfile-results.sarif ]; then
+          cp trivy-axon-dockerfile-results.sarif trivy-dockerfile-combined-results.sarif
+        elif [ -f trivy-orbit-dockerfile-results.sarif ]; then
+          cp trivy-orbit-dockerfile-results.sarif trivy-dockerfile-combined-results.sarif
+        else
+          echo "No Dockerfile scan results found"
+          touch trivy-dockerfile-combined-results.sarif
+        fi
 
     - name: Upload Trivy Dockerfile scan results to GitHub Security tab
+      if: always() && (steps.trivy-axon-dockerfile.outcome == 'success' || steps.trivy-orbit-dockerfile.outcome == 'success')
       uses: github/codeql-action/upload-sarif@v2
-      if: always()
       with:
-        sarif_file: 'trivy-orbit-dockerfile-results.sarif'
+        sarif_file: 'trivy-dockerfile-combined-results.sarif'
+        category: 'trivy-dockerfile'
         wait-for-processing: true
+
+    - name: Combine Trivy image scan results
+      if: always() && steps.aws-credentials.outcome == 'success'
+      run: |
+        # Install jq if not available
+        if ! command -v jq &> /dev/null; then
+          sudo apt-get update && sudo apt-get install -y jq || echo "jq install failed, will use fallback"
+        fi
+        
+        # Combine SARIF files if they exist
+        if [ -f trivy-axon-image-results.sarif ] && [ -f trivy-orbit-image-results.sarif ]; then
+          # Use jq to combine SARIF files
+          if command -v jq &> /dev/null; then
+            jq -s '.[0].runs = ([.[].runs[]] | flatten) | .[0]' trivy-axon-image-results.sarif trivy-orbit-image-results.sarif > trivy-image-combined-results.sarif
+          else
+            # Fallback: use Python to combine
+            python3 << 'EOF'
+import json
+import sys
+
+files = ['trivy-axon-image-results.sarif', 'trivy-orbit-image-results.sarif']
+combined_runs = []
+
+for file in files:
+    try:
+        with open(file, 'r') as f:
+            data = json.load(f)
+            if 'runs' in data:
+                combined_runs.extend(data['runs'])
+    except:
+        pass
+
+if combined_runs:
+    with open('trivy-axon-image-results.sarif', 'r') as f:
+        base = json.load(f)
+    base['runs'] = combined_runs
+    with open('trivy-image-combined-results.sarif', 'w') as f:
+        json.dump(base, f)
+EOF
+          fi
+        elif [ -f trivy-axon-image-results.sarif ]; then
+          cp trivy-axon-image-results.sarif trivy-image-combined-results.sarif
+        elif [ -f trivy-orbit-image-results.sarif ]; then
+          cp trivy-orbit-image-results.sarif trivy-image-combined-results.sarif
+        else
+          echo "No image scan results found"
+          touch trivy-image-combined-results.sarif
+        fi
 
     - name: Upload Trivy image scan results to GitHub Security tab
-      if: always() && steps.aws-credentials.outcome == 'success'
+      if: always() && steps.aws-credentials.outcome == 'success' && (steps.trivy-axon-image.outcome == 'success' || steps.trivy-orbit-image.outcome == 'success')
       uses: github/codeql-action/upload-sarif@v2
       with:
-        sarif_file: 'trivy-axon-image-results.sarif'
-        wait-for-processing: true
-
-    - name: Upload Trivy image scan results to GitHub Security tab
-      if: always() && steps.aws-credentials.outcome == 'success'
-      uses: github/codeql-action/upload-sarif@v2
-      with:
-        sarif_file: 'trivy-orbit-image-results.sarif'
+        sarif_file: 'trivy-image-combined-results.sarif'
+        category: 'trivy-image'
         wait-for-processing: true
 
     - name: Fail on critical vulnerabilities
