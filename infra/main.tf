@@ -68,6 +68,8 @@ module "ecs" {
   orbit_secret_arn            = module.secrets.orbit_secret_arn
   axon_target_group_arn       = module.alb.axon_target_group_arn
   orbit_target_group_arn      = module.alb.orbit_target_group_arn
+  axon_listener_rule_arn      = module.alb.axon_listener_rule_arn
+  orbit_listener_rule_arn     = module.alb.orbit_listener_rule_arn
   service_discovery_namespace = module.appmesh.service_discovery_namespace
   axon_service_discovery_arn  = module.appmesh.axon_service_discovery_arn
   orbit_service_discovery_arn = module.appmesh.orbit_service_discovery_arn

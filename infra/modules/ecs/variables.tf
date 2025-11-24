@@ -88,3 +88,13 @@ variable "governance_function_name" {
   type        = string
   default     = ""
 }
+
+variable "axon_listener_rule_arn" {
+  description = "Axon listener rule ARN - ensures target group is associated with ALB"
+  type        = string
+}
+
+variable "orbit_listener_rule_arn" {
+  description = "Orbit listener rule ARN - ensures target group is associated with ALB"
+  type        = string
+}

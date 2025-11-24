@@ -18,3 +18,13 @@ output "orbit_target_group_arn" {
   value       = aws_lb_target_group.orbit.arn
 }
 
+output "axon_listener_rule_arn" {
+  description = "Axon listener rule ARN"
+  value       = aws_lb_listener_rule.axon.arn
+}
+
+output "orbit_listener_rule_arn" {
+  description = "Orbit listener rule ARN"
+  value       = aws_lb_listener_rule.orbit.arn
+}
+

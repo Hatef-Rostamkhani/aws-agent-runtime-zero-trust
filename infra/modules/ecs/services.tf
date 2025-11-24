@@ -1,3 +1,11 @@
+# Null resource to ensure listener rule is created before ECS service
+# This ensures the target group is associated with the ALB via the listener rule
+resource "null_resource" "axon_listener_rule_ready" {
+  triggers = {
+    listener_rule_arn = var.axon_listener_rule_arn
+  }
+}
+
 resource "aws_ecs_service" "axon" {
   name            = "${var.project_name}-axon"
   cluster         = aws_ecs_cluster.main.id
@@ -32,8 +40,17 @@ resource "aws_ecs_service" "axon" {
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.ecs_task_execution
+    aws_iam_role_policy_attachment.ecs_task_execution,
+    null_resource.axon_listener_rule_ready
   ]
+}
+
+# Null resource to ensure listener rule is created before ECS service
+# This ensures the target group is associated with the ALB via the listener rule
+resource "null_resource" "orbit_listener_rule_ready" {
+  triggers = {
+    listener_rule_arn = var.orbit_listener_rule_arn
+  }
 }
 
 resource "aws_ecs_service" "orbit" {
@@ -70,7 +87,8 @@ resource "aws_ecs_service" "orbit" {
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.ecs_task_execution
+    aws_iam_role_policy_attachment.ecs_task_execution,
+    null_resource.orbit_listener_rule_ready
   ]
 }
 
