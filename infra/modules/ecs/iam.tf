@@ -25,6 +25,37 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# ECR policy for pulling images from specific repositories
+resource "aws_iam_role_policy" "ecs_task_execution_ecr" {
+  name = "${var.project_name}-ecs-task-execution-ecr"
+  role = aws_iam_role.ecs_task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage"
+        ]
+        Resource = [
+          aws_ecr_repository.axon.arn,
+          aws_ecr_repository.orbit.arn
+        ]
+      }
+    ]
+  })
+}
+
 # CloudWatch Logs policy for task execution
 resource "aws_iam_role_policy" "ecs_task_execution_logs" {
   name = "${var.project_name}-ecs-task-execution-logs"

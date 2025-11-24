@@ -29,11 +29,12 @@ resource "aws_security_group" "vpc_endpoints" {
 }
 
 # VPC Endpoint for Secrets Manager
+# Using only private subnets (one per AZ) - axon_runtime subnets can access via VPC CIDR
 resource "aws_vpc_endpoint" "secretsmanager" {
   vpc_id              = aws_vpc.main.id
   service_name        = "com.amazonaws.${data.aws_region.current.name}.secretsmanager"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = concat(aws_subnet.private[*].id, aws_subnet.axon_runtime[*].id)
+  subnet_ids          = aws_subnet.private[*].id
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
 
@@ -43,11 +44,12 @@ resource "aws_vpc_endpoint" "secretsmanager" {
 }
 
 # VPC Endpoint for ECR API
+# Using only private subnets (one per AZ) - axon_runtime subnets can access via VPC CIDR
 resource "aws_vpc_endpoint" "ecr_api" {
   vpc_id              = aws_vpc.main.id
   service_name        = "com.amazonaws.${data.aws_region.current.name}.ecr.api"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = concat(aws_subnet.private[*].id, aws_subnet.axon_runtime[*].id)
+  subnet_ids          = aws_subnet.private[*].id
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
 
@@ -57,11 +59,12 @@ resource "aws_vpc_endpoint" "ecr_api" {
 }
 
 # VPC Endpoint for ECR DKR (Docker Registry)
+# Using only private subnets (one per AZ) - axon_runtime subnets can access via VPC CIDR
 resource "aws_vpc_endpoint" "ecr_dkr" {
   vpc_id              = aws_vpc.main.id
   service_name        = "com.amazonaws.${data.aws_region.current.name}.ecr.dkr"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = concat(aws_subnet.private[*].id, aws_subnet.axon_runtime[*].id)
+  subnet_ids          = aws_subnet.private[*].id
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
 
@@ -71,11 +74,12 @@ resource "aws_vpc_endpoint" "ecr_dkr" {
 }
 
 # VPC Endpoint for CloudWatch Logs
+# Using only private subnets (one per AZ) - axon_runtime subnets can access via VPC CIDR
 resource "aws_vpc_endpoint" "logs" {
   vpc_id              = aws_vpc.main.id
   service_name        = "com.amazonaws.${data.aws_region.current.name}.logs"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = concat(aws_subnet.private[*].id, aws_subnet.axon_runtime[*].id)
+  subnet_ids          = aws_subnet.private[*].id
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
 
@@ -85,11 +89,12 @@ resource "aws_vpc_endpoint" "logs" {
 }
 
 # VPC Endpoint for KMS
+# Using only private subnets (one per AZ) - axon_runtime subnets can access via VPC CIDR
 resource "aws_vpc_endpoint" "kms" {
   vpc_id              = aws_vpc.main.id
   service_name        = "com.amazonaws.${data.aws_region.current.name}.kms"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = concat(aws_subnet.private[*].id, aws_subnet.axon_runtime[*].id)
+  subnet_ids          = aws_subnet.private[*].id
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
 
