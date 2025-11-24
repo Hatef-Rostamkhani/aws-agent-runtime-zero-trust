@@ -66,6 +66,8 @@ module "ecs" {
   orbit_role_arn              = module.iam.orbit_role_arn
   axon_secret_arn             = module.secrets.axon_secret_arn
   orbit_secret_arn            = module.secrets.orbit_secret_arn
+  axon_kms_key_arn            = module.kms.axon_key_arn
+  orbit_kms_key_arn           = module.kms.orbit_key_arn
   axon_target_group_arn       = module.alb.axon_target_group_arn
   orbit_target_group_arn      = module.alb.orbit_target_group_arn
   axon_listener_rule_arn      = module.alb.axon_listener_rule_arn

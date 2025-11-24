@@ -98,3 +98,13 @@ variable "orbit_listener_rule_arn" {
   description = "Orbit listener rule ARN - ensures target group is associated with ALB"
   type        = string
 }
+
+variable "axon_kms_key_arn" {
+  description = "Axon KMS key ARN for decrypting secrets"
+  type        = string
+}
+
+variable "orbit_kms_key_arn" {
+  description = "Orbit KMS key ARN for decrypting secrets"
+  type        = string
+}

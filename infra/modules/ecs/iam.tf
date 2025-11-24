@@ -77,3 +77,38 @@ resource "aws_iam_role_policy" "ecs_task_execution_logs" {
   })
 }
 
+# Secrets Manager and KMS policy for task execution
+# Required for ECS to retrieve secrets from Secrets Manager and decrypt them using KMS
+resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
+  name = "${var.project_name}-ecs-task-execution-secrets"
+  role = aws_iam_role.ecs_task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = [
+          var.axon_secret_arn,
+          var.orbit_secret_arn
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey"
+        ]
+        Resource = [
+          var.axon_kms_key_arn,
+          var.orbit_kms_key_arn
+        ]
+      }
+    ]
+  })
+}
+
