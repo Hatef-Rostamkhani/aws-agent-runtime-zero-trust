@@ -30,55 +30,100 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    # Scan Dockerfiles (always works, no AWS credentials needed)
+    - name: Run Trivy vulnerability scanner on Axon Dockerfile
+      id: trivy-axon-dockerfile
+      uses: aquasecurity/trivy-action@master
+      continue-on-error: true
+      with:
+        scan-type: 'fs'
+        scan-ref: './services/axon'
+        format: 'sarif'
+        output: 'trivy-axon-dockerfile-results.sarif'
+        severity: 'CRITICAL,HIGH'
+        exit-code: '1'
+
+    - name: Run Trivy vulnerability scanner on Orbit Dockerfile
+      id: trivy-orbit-dockerfile
+      uses: aquasecurity/trivy-action@master
+      continue-on-error: true
+      with:
+        scan-type: 'fs'
+        scan-ref: './services/orbit'
+        format: 'sarif'
+        output: 'trivy-orbit-dockerfile-results.sarif'
+        severity: 'CRITICAL,HIGH'
+        exit-code: '1'
+
+    # Scan ECR images (only if AWS credentials are available)
     - name: Configure AWS credentials
+      id: aws-credentials
+      continue-on-error: true
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_APP_ROLE }}
         aws-region: ${{ env.AWS_REGION }}
 
     - name: Login to Amazon ECR
+      if: steps.aws-credentials.outcome == 'success'
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Run Trivy vulnerability scanner on Axon
-      id: trivy-axon
+    - name: Run Trivy vulnerability scanner on Axon image
+      id: trivy-axon-image
+      if: steps.aws-credentials.outcome == 'success'
       uses: aquasecurity/trivy-action@master
       continue-on-error: true
       with:
         scan-type: 'image'
         image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}/axon:latest
         format: 'sarif'
-        output: 'trivy-axon-results.sarif'
+        output: 'trivy-axon-image-results.sarif'
         severity: 'CRITICAL,HIGH'
         exit-code: '1'
 
-    - name: Run Trivy vulnerability scanner on Orbit
-      id: trivy-orbit
+    - name: Run Trivy vulnerability scanner on Orbit image
+      id: trivy-orbit-image
+      if: steps.aws-credentials.outcome == 'success'
       uses: aquasecurity/trivy-action@master
       continue-on-error: true
       with:
         scan-type: 'image'
         image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}/orbit:latest
         format: 'sarif'
-        output: 'trivy-orbit-results.sarif'
+        output: 'trivy-orbit-image-results.sarif'
         severity: 'CRITICAL,HIGH'
         exit-code: '1'
 
-    - name: Upload Trivy scan results to GitHub Security tab
+    - name: Upload Trivy Dockerfile scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v2
       if: always()
       with:
-        sarif_file: 'trivy-axon-results.sarif'
+        sarif_file: 'trivy-axon-dockerfile-results.sarif'
         wait-for-processing: true
 
-    - name: Upload Trivy scan results to GitHub Security tab
+    - name: Upload Trivy Dockerfile scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v2
       if: always()
       with:
-        sarif_file: 'trivy-orbit-results.sarif'
+        sarif_file: 'trivy-orbit-dockerfile-results.sarif'
+        wait-for-processing: true
+
+    - name: Upload Trivy image scan results to GitHub Security tab
+      if: always() && steps.aws-credentials.outcome == 'success'
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-axon-image-results.sarif'
+        wait-for-processing: true
+
+    - name: Upload Trivy image scan results to GitHub Security tab
+      if: always() && steps.aws-credentials.outcome == 'success'
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-orbit-image-results.sarif'
         wait-for-processing: true
 
     - name: Fail on critical vulnerabilities
-      if: steps.trivy-axon.outputs.exit-code == 1 || steps.trivy-orbit.outputs.exit-code == 1
+      if: steps.trivy-axon-dockerfile.outputs.exit-code == 1 || steps.trivy-orbit-dockerfile.outputs.exit-code == 1 || (steps.aws-credentials.outcome == 'success' && (steps.trivy-axon-image.outputs.exit-code == 1 || steps.trivy-orbit-image.outputs.exit-code == 1))
       run: |
         echo "Critical or high severity vulnerabilities found"
         exit 1
