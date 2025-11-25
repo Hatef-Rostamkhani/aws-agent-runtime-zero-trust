@@ -1,0 +1,24 @@
+{
+  "queries": {
+    "error_analysis": {
+      "query": "fields @timestamp, @message, correlation_id, service\n| filter level = \"ERROR\"\n| sort @timestamp desc\n| limit 100",
+      "description": "Find all errors with correlation IDs"
+    },
+    "request_tracing": {
+      "query": "fields @timestamp, @message, correlation_id, method, url\n| filter ispresent(correlation_id)\n| sort @timestamp desc\n| limit 50",
+      "description": "Trace requests across services"
+    },
+    "governance_decisions": {
+      "query": "fields @timestamp, service, intent, allowed, reason, correlation_id\n| filter ispresent(allowed)\n| stats count() by bin(5m), allowed\n| sort @timestamp desc",
+      "description": "Analyze governance decision patterns"
+    },
+    "performance_analysis": {
+      "query": "fields @timestamp, duration, service, operation\n| filter ispresent(duration)\n| stats avg(duration), max(duration), min(duration) by bin(1m), service\n| sort @timestamp desc",
+      "description": "Performance metrics over time"
+    },
+    "security_events": {
+      "query": "fields @timestamp, @message, source_ip, user_agent\n| filter @message like /DENIED/ or @message like /BLOCKED/\n| sort @timestamp desc\n| limit 50",
+      "description": "Security-related events"
+    }
+  }
+}

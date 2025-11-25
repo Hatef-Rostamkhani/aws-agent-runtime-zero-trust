@@ -1,0 +1,29 @@
+{
+  "custom_metrics": [
+    {
+      "name": "RequestCount",
+      "namespace": "${PROJECT_NAME}/API",
+      "description": "Total API requests per service"
+    },
+    {
+      "name": "SuccessRate",
+      "namespace": "${PROJECT_NAME}/API",
+      "description": "API success rate percentage"
+    },
+    {
+      "name": "GovernanceDecisionTime",
+      "namespace": "${PROJECT_NAME}/Governance",
+      "description": "Time taken for governance decisions"
+    },
+    {
+      "name": "InterServiceLatency",
+      "namespace": "${PROJECT_NAME}/Network",
+      "description": "Latency between services"
+    }
+  ],
+  "sla_targets": {
+    "availability": 99.9,
+    "latency_p95": 500,
+    "error_rate": 1.0
+  }
+}

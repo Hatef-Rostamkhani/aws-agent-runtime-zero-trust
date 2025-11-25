@@ -67,25 +67,34 @@ jobs:
           exit 1
         fi
 
-        # Check Terraform outputs exist
-        echo "Checking Terraform outputs..."
-        cd infra
-        terraform init -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
-          -backend-config="dynamodb_table=${{ secrets.TERRAFORM_STATE_DYNAMODB_TABLE }}" \
-          -backend-config="key=infra/terraform.tfstate" > /dev/null 2>&1
+        # Check if infrastructure components exist via AWS APIs
+        echo "Checking infrastructure components..."
 
-        # Try to get outputs to verify infrastructure is fully deployed
-        OUTPUT_CHECK=$(terraform output -json 2>/dev/null | jq -r '.private_subnet_ids // empty' || echo "")
+        # Check VPC exists
+        VPC_EXISTS=$(aws ec2 describe-vpcs \
+          --filters "Name=tag:Name,Values=${{ env.PROJECT_NAME }}-vpc" \
+          --query 'length(Vpcs)' \
+          --output text 2>/dev/null || echo "0")
 
-        if [ -z "$OUTPUT_CHECK" ]; then
-          echo "::error::Infrastructure outputs not found. Infrastructure may not be fully deployed."
-          echo "::error::Please check that the 'Deploy Infrastructure' workflow completed successfully."
-          echo "::error::Go to Actions > Deploy Infrastructure and verify it completed without errors."
+        if [ "$VPC_EXISTS" = "0" ]; then
+          echo "::error::VPC '${{ env.PROJECT_NAME }}-vpc' not found."
+          echo "::error::Please ensure infrastructure is deployed."
           exit 1
         fi
 
-        cd ..
-        echo "✓ Infrastructure outputs found"
+        # Check subnets exist
+        SUBNET_COUNT=$(aws ec2 describe-subnets \
+          --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Name,Values=*private*" \
+          --query 'length(Subnets)' \
+          --output text 2>/dev/null || echo "0")
+
+        if [ "$SUBNET_COUNT" = "0" ]; then
+          echo "::error::No private subnets found."
+          echo "::error::Please ensure infrastructure is deployed."
+          exit 1
+        fi
+
+        echo "✓ Infrastructure components found"
 
         # Check if ECS services exist (they may have desired_count=0 initially)
         AXON_SERVICE=$(aws ecs describe-services \
@@ -160,26 +169,57 @@ jobs:
         fi
 
 
-    - name: Get Infrastructure Outputs
+    - name: Get Infrastructure Values
       id: get-outputs
       if: steps.download-lambda.outputs.artifact_downloaded == 'true'
       run: |
-        echo "Getting infrastructure outputs..."
-        cd infra
-        terraform init -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
-          -backend-config="dynamodb_table=${{ secrets.TERRAFORM_STATE_DYNAMODB_TABLE }}" \
-          -backend-config="key=infra/terraform.tfstate"
+        echo "Getting infrastructure values from AWS..."
 
-        # Get required outputs
-        VPC_ID=$(terraform output -raw vpc_id)
-        PRIVATE_SUBNETS_JSON=$(terraform output -json private_subnet_ids)
-        GOVERNANCE_SG=$(terraform output -raw governance_security_group_id)
-        ORBIT_ROLE_ARN=$(terraform output -raw orbit_iam_role_arn)
+        # Get VPC ID (find VPC by name/tag)
+        VPC_ID=$(aws ec2 describe-vpcs \
+          --filters "Name=tag:Name,Values=${{ env.PROJECT_NAME }}-vpc" \
+          --query 'Vpcs[0].VpcId' \
+          --output text 2>/dev/null || echo "")
+
+        if [ -z "$VPC_ID" ] || [ "$VPC_ID" = "None" ]; then
+          echo "::error::Could not find VPC with name '${{ env.PROJECT_NAME }}-vpc'"
+          exit 1
+        fi
+
+        # Get private subnets
+        PRIVATE_SUBNETS_JSON=$(aws ec2 describe-subnets \
+          --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Name,Values=*private*" \
+          --query 'Subnets[*].SubnetId' \
+          --output json 2>/dev/null || echo "[]")
+
+        # Get governance security group
+        GOVERNANCE_SG=$(aws ec2 describe-security-groups \
+          --filters "Name=group-name,Values=${{ env.PROJECT_NAME }}-governance*" \
+          --query 'SecurityGroups[0].GroupId' \
+          --output text 2>/dev/null || echo "")
+
+        if [ -z "$GOVERNANCE_SG" ] || [ "$GOVERNANCE_SG" = "None" ]; then
+          echo "::error::Could not find governance security group"
+          exit 1
+        fi
+
+        # Get orbit IAM role ARN
+        ORBIT_ROLE_ARN=$(aws iam get-role \
+          --role-name ${{ env.PROJECT_NAME }}-orbit-role \
+          --query 'Role.Arn' \
+          --output text 2>/dev/null || echo "")
+
+        if [ -z "$ORBIT_ROLE_ARN" ] || [ "$ORBIT_ROLE_ARN" = "None" ]; then
+          echo "::error::Could not find orbit IAM role"
+          exit 1
+        fi
 
         echo "vpc_id=$VPC_ID" >> $GITHUB_OUTPUT
         echo "private_subnet_ids=$PRIVATE_SUBNETS_JSON" >> $GITHUB_OUTPUT
         echo "governance_security_group_id=$GOVERNANCE_SG" >> $GITHUB_OUTPUT
         echo "orbit_task_role_arn=$ORBIT_ROLE_ARN" >> $GITHUB_OUTPUT
+
+        echo "✓ Found all required infrastructure values"
 
     - name: Deploy Governance Lambda (if artifact exists)
       if: steps.download-lambda.outputs.artifact_downloaded == 'true'

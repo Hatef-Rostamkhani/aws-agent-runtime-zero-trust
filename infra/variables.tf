@@ -66,3 +66,9 @@ variable "governance_function_name" {
   default     = ""
 }
 
+variable "alert_email" {
+  description = "Email address for observability alerts (optional)"
+  type        = string
+  default     = ""
+}
+

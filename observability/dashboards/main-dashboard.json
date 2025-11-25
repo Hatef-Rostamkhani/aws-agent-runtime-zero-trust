@@ -1,0 +1,148 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/ECS", "CPUUtilization", "ServiceName", "${PROJECT_NAME}-axon", "ClusterName", "${PROJECT_NAME}-cluster"],
+          [".", ".", ".", "${PROJECT_NAME}-orbit", ".", "."]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS_REGION}",
+        "title": "ECS Service CPU Utilization",
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/ECS", "MemoryUtilization", "ServiceName", "${PROJECT_NAME}-axon", "ClusterName", "${PROJECT_NAME}-cluster"],
+          [".", ".", ".", "${PROJECT_NAME}-orbit", ".", "."]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS_REGION}",
+        "title": "ECS Service Memory Utilization",
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "log",
+      "x": 0,
+      "y": 6,
+      "width": 24,
+      "height": 6,
+      "properties": {
+        "query": "fields @timestamp, @message\n| filter @message like /ERROR/ or @message like /WARN/\n| sort @timestamp desc\n| limit 100",
+        "region": "${AWS_REGION}",
+        "title": "Recent Errors and Warnings",
+        "view": "table"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 12,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/ApiGateway", "Count", "ApiName", "${PROJECT_NAME}-governance", "Method", "POST", "Resource", "/govern"]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS_REGION}",
+        "title": "Governance API Calls",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8,
+      "y": 12,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/Lambda", "Duration", "FunctionName", "${PROJECT_NAME}-governance"]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS_REGION}",
+        "title": "Governance Lambda Duration",
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 16,
+      "y": 12,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/Lambda", "Errors", "FunctionName", "${PROJECT_NAME}-governance"]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS_REGION}",
+        "title": "Governance Lambda Errors",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 18,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/ECS", "RunningTaskCount", "ServiceName", "${PROJECT_NAME}-axon", "ClusterName", "${PROJECT_NAME}-cluster"],
+          [".", ".", ".", "${PROJECT_NAME}-orbit", ".", "."]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS_REGION}",
+        "title": "Running Tasks Count",
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 18,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["LogMetrics", "ErrorRate", "LogGroup", "/ecs/${PROJECT_NAME}-axon"],
+          [".", ".", ".", "/ecs/${PROJECT_NAME}-orbit"],
+          [".", ".", ".", "/aws/lambda/${PROJECT_NAME}-governance"]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS_REGION}",
+        "title": "Error Rates",
+        "period": 300,
+        "stat": "Average"
+      }
+    }
+  ]
+}

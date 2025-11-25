@@ -223,6 +223,17 @@ module "alb" {
   alb_security_group_id = module.security.alb_security_group_id
 }
 
+# Observability Module
+module "observability" {
+  source = "../observability/terraform"
+
+  project_name = var.project_name
+  environment  = var.environment
+  aws_region   = var.aws_region
+  kms_key_arn  = module.kms.axon_key_arn # Use axon KMS key for encryption
+  alert_email  = var.alert_email
+}
+
 # CI/CD Module (for GitHub OIDC)
 module "cicd" {
   source = "./modules/cicd"
