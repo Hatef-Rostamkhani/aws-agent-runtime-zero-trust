@@ -196,11 +196,11 @@ jobs:
           exit 1
         fi
 
-        # Get private subnets
+        # Get private subnets (compact JSON for GITHUB_OUTPUT)
         PRIVATE_SUBNETS_JSON=$(aws ec2 describe-subnets \
           --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Name,Values=*private*" \
           --query 'Subnets[*].SubnetId' \
-          --output json 2>/dev/null || echo "[]")
+          --output json 2>/dev/null | jq -c . 2>/dev/null || echo "[]")
 
         # Get governance security group
         GOVERNANCE_SG=$(aws ec2 describe-security-groups \
