@@ -140,6 +140,27 @@ jobs:
       with:
         terraform_version: "1.5.0"
 
+    - name: Get Infrastructure Outputs
+      id: get-outputs
+      if: steps.download-lambda.outputs.artifact_downloaded == 'true'
+      run: |
+        echo "Getting infrastructure outputs..."
+        cd infra
+        terraform init -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
+          -backend-config="dynamodb_table=${{ secrets.TERRAFORM_STATE_DYNAMODB_TABLE }}" \
+          -backend-config="key=infra/terraform.tfstate"
+
+        # Get required outputs
+        VPC_ID=$(terraform output -raw vpc_id)
+        PRIVATE_SUBNETS_JSON=$(terraform output -json private_subnet_ids)
+        GOVERNANCE_SG=$(terraform output -raw governance_security_group_id)
+        ORBIT_ROLE_ARN=$(terraform output -raw orbit_iam_role_arn)
+
+        echo "vpc_id=$VPC_ID" >> $GITHUB_OUTPUT
+        echo "private_subnet_ids=$PRIVATE_SUBNETS_JSON" >> $GITHUB_OUTPUT
+        echo "governance_security_group_id=$GOVERNANCE_SG" >> $GITHUB_OUTPUT
+        echo "orbit_task_role_arn=$ORBIT_ROLE_ARN" >> $GITHUB_OUTPUT
+
     - name: Deploy Governance Lambda (if artifact exists)
       if: steps.download-lambda.outputs.artifact_downloaded == 'true'
       run: |
@@ -151,7 +172,11 @@ jobs:
         terraform apply -auto-approve \
           -var="project_name=${{ env.PROJECT_NAME }}" \
           -var="environment=production" \
-          -var="aws_region=${{ env.AWS_REGION }}"
+          -var="aws_region=${{ env.AWS_REGION }}" \
+          -var="vpc_id=${{ steps.get-outputs.outputs.vpc_id }}" \
+          -var="private_subnet_ids=${{ steps.get-outputs.outputs.private_subnet_ids }}" \
+          -var="governance_security_group_id=${{ steps.get-outputs.outputs.governance_security_group_id }}" \
+          -var="orbit_task_role_arn=${{ steps.get-outputs.outputs.orbit_task_role_arn }}"
 
     - name: Blue-Green Deployment for Axon
       run: |
