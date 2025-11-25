@@ -124,7 +124,7 @@ resource "aws_cloudwatch_composite_alarm" "service_unhealthy" {
   alarm_name = "${var.project_name}-service-unhealthy"
   alarm_description = "Multiple services are in unhealthy state"
 
-  alarm_rule = "ALARM(\"${aws_cloudwatch_metric_alarm.axon_cpu_high.alarm_name}\") OR ALARM(\"${aws_cloudwatch_metric_alarm.orbit_down.alarm_name}\") OR ALARM(\"${aws_cloudwatch_metric_alarm.governance_errors.alarm_name}\")"
+  alarm_rule = "ALARM(\"${var.project_name}-axon-cpu-high\") OR ALARM(\"${var.project_name}-orbit-service-down\") OR ALARM(\"${var.project_name}-governance-errors\")"
 
   alarm_actions = [aws_sns_topic.alerts.arn]
 
