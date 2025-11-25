@@ -239,14 +239,22 @@ jobs:
         terraform init -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
           -backend-config="dynamodb_table=${{ secrets.TERRAFORM_STATE_DYNAMODB_TABLE }}" \
           -backend-config="key=governance/terraform.tfstate"
-        terraform apply -auto-approve \
-          -var="project_name=${{ env.PROJECT_NAME }}" \
-          -var="environment=production" \
-          -var="aws_region=${{ env.AWS_REGION }}" \
-          -var="vpc_id=${{ steps.get-outputs.outputs.vpc_id }}" \
-          -var="private_subnet_ids=${{ steps.get-outputs.outputs.private_subnet_ids }}" \
-          -var="governance_security_group_id=${{ steps.get-outputs.outputs.governance_security_group_id }}" \
-          -var="orbit_task_role_arn=${{ steps.get-outputs.outputs.orbit_task_role_arn }}"
+        # Create temporary tfvars file for complex variables
+        echo "Creating temp.tfvars file with variables:"
+        cat > temp.tfvars << EOF
+        project_name = "${{ env.PROJECT_NAME }}"
+        environment = "production"
+        aws_region = "${{ env.AWS_REGION }}"
+        vpc_id = "${{ steps.get-outputs.outputs.vpc_id }}"
+        private_subnet_ids = ${{ steps.get-outputs.outputs.private_subnet_ids }}
+        governance_security_group_id = "${{ steps.get-outputs.outputs.governance_security_group_id }}"
+        orbit_task_role_arn = "${{ steps.get-outputs.outputs.orbit_task_role_arn }}"
+        EOF
+
+        echo "Contents of temp.tfvars:"
+        cat temp.tfvars
+
+        terraform apply -auto-approve -var-file=temp.tfvars
 
     - name: Blue-Green Deployment for Axon
       run: |
