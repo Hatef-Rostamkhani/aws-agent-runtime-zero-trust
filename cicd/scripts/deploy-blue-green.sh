@@ -60,9 +60,9 @@ export AWS_REGION=$AWS_REGION
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$SCRIPT_DIR/deploy.sh" production $SERVICE_NAME
 
-# Run health checks
+# Run health checks for the deployed service(s)
 echo "Running health checks..."
-if "$SCRIPT_DIR/health-check.sh" $PROJECT_NAME $AWS_REGION; then
+if "$SCRIPT_DIR/health-check.sh" $PROJECT_NAME $AWS_REGION $SERVICE_NAME; then
     echo "Health checks passed. Deployment successful."
 else
     echo "Health checks failed. Rolling back..."
