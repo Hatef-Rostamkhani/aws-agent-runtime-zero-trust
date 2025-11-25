@@ -33,6 +33,14 @@ resource "aws_ecs_service" "axon" {
     type = "ECS"
   }
 
+  # Force new deployment when task definition changes
+  lifecycle {
+    create_before_destroy = true
+    replace_triggered_by = [
+      aws_ecs_task_definition.axon
+    ]
+  }
+
   tags = {
     Name        = "${var.project_name}-axon-service"
     Service     = "axon"
@@ -78,6 +86,14 @@ resource "aws_ecs_service" "orbit" {
 
   deployment_controller {
     type = "ECS"
+  }
+
+  # Force new deployment when task definition changes
+  lifecycle {
+    create_before_destroy = true
+    replace_triggered_by = [
+      aws_ecs_task_definition.orbit
+    ]
   }
 
   tags = {
