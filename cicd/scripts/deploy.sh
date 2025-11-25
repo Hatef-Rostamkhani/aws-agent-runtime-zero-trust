@@ -220,8 +220,8 @@ SERVICES=""
 if [ -n "$SERVICES" ]; then
     echo "Waiting for services: $SERVICES"
     
-    # Custom wait loop with better diagnostics (max 20 minutes = 80 attempts * 15s)
-    MAX_ATTEMPTS=80
+    # Custom wait loop with better diagnostics (max 10 minutes = 40 attempts * 15s)
+    MAX_ATTEMPTS=40
     ATTEMPT=0
     STABLE=false
     
@@ -244,17 +244,42 @@ if [ -n "$SERVICES" ]; then
             DEPLOYMENT_COUNT=$(echo "$SERVICE_STATUS" | jq -r '.deployments | length' 2>/dev/null || echo "0")
             PRIMARY_DEPLOYMENT=$(echo "$SERVICE_STATUS" | jq -r '.deployments[0] // {}' 2>/dev/null || echo "{}")
             DEPLOYMENT_STATUS=$(echo "$PRIMARY_DEPLOYMENT" | jq -r '.status // "UNKNOWN"' 2>/dev/null || echo "UNKNOWN")
+            DEPLOYMENT_ROLLOUT_STATE=$(echo "$PRIMARY_DEPLOYMENT" | jq -r '.rolloutState // "UNKNOWN"' 2>/dev/null || echo "UNKNOWN")
             DEPLOYMENT_RUNNING=$(echo "$PRIMARY_DEPLOYMENT" | jq -r '.runningCount // 0' 2>/dev/null || echo "0")
             DEPLOYMENT_DESIRED=$(echo "$PRIMARY_DEPLOYMENT" | jq -r '.desiredCount // 0' 2>/dev/null || echo "0")
             
-            echo "  $SERVICE: Running=$RUNNING/$DESIRED, Pending=$PENDING, Deployment=$DEPLOYMENT_STATUS ($DEPLOYMENT_RUNNING/$DEPLOYMENT_DESIRED)"
+            echo "  $SERVICE: Running=$RUNNING/$DESIRED, Pending=$PENDING, Deployment=$DEPLOYMENT_STATUS (rollout=$DEPLOYMENT_ROLLOUT_STATE, $DEPLOYMENT_RUNNING/$DEPLOYMENT_DESIRED)"
             
-            # Service is stable if:
+            # Service is stable if ALL of these are true:
             # 1. Running count matches desired count
             # 2. No pending tasks
-            # 3. Primary deployment is ACTIVE and running count matches desired
-            if [ "$RUNNING" != "$DESIRED" ] || [ "$PENDING" != "0" ] || \
-               [ "$DEPLOYMENT_STATUS" != "ACTIVE" ] || [ "$DEPLOYMENT_RUNNING" != "$DEPLOYMENT_DESIRED" ]; then
+            # 3. Deployment running count matches desired count
+            # 4. Only one deployment (no active rollback or update in progress)
+            # 5. Primary deployment rollout is COMPLETED
+            SERVICE_STABLE=true
+            
+            if [ "$RUNNING" != "$DESIRED" ]; then
+                SERVICE_STABLE=false
+            fi
+            
+            if [ "$PENDING" != "0" ]; then
+                SERVICE_STABLE=false
+            fi
+            
+            if [ "$DEPLOYMENT_RUNNING" != "$DEPLOYMENT_DESIRED" ]; then
+                SERVICE_STABLE=false
+            fi
+            
+            if [ "$DEPLOYMENT_COUNT" != "1" ]; then
+                SERVICE_STABLE=false
+            fi
+            
+            # rolloutState must be COMPLETED for service to be stable
+            if [ "$DEPLOYMENT_ROLLOUT_STATE" != "COMPLETED" ]; then
+                SERVICE_STABLE=false
+            fi
+            
+            if [ "$SERVICE_STABLE" != "true" ]; then
                 STABLE=false
             fi
             
@@ -294,7 +319,7 @@ if [ -n "$SERVICES" ]; then
         ATTEMPT=$((ATTEMPT + 1))
         if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
             if [ $((ATTEMPT % 4)) -eq 0 ]; then
-                echo "  ⏳ Still waiting... ($((ATTEMPT * 15 / 60)) minutes elapsed, max 20 minutes)"
+                echo "  ⏳ Still waiting... ($((ATTEMPT * 15 / 60)) minutes elapsed, max 10 minutes)"
             fi
             sleep 15
         fi
@@ -302,7 +327,7 @@ if [ -n "$SERVICES" ]; then
     
     # Final status check
     if [ "$STABLE" != "true" ]; then
-        echo "⚠️  Services did not fully stabilize within timeout period (20 minutes)"
+        echo "⚠️  Services did not fully stabilize within timeout period (10 minutes)"
         echo "Final service status:"
         for SERVICE in $SERVICES; do
             echo ""
