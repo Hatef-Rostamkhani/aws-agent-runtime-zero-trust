@@ -92,7 +92,10 @@ jobs:
     - name: Download Lambda package
       id: download-lambda
       continue-on-error: true
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
+        set +e  # Don't exit on error
         echo "Looking for governance-lambda artifact..."
 
         # If triggered by workflow_run, use that run ID
@@ -101,20 +104,29 @@ jobs:
           echo "Using workflow_run ID: $ARTIFACT_RUN_ID"
         else
           # Find the most recent successful "Build and Push" workflow run
-          ARTIFACT_RUN_ID=$(gh run list --workflow="build.yml" --status=success --limit=1 --json databaseId --jq '.[0].databaseId' 2>/dev/null)
+          echo "Searching for recent successful build workflow..."
+          ARTIFACT_RUN_ID=$(gh run list --workflow="build.yml" --status=success --limit=1 --json databaseId --jq '.[0].databaseId' 2>&1)
+          
+          if [ $? -ne 0 ]; then
+            echo "Error finding workflow runs: $ARTIFACT_RUN_ID"
+            echo "artifact_downloaded=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
           echo "Found build run ID: $ARTIFACT_RUN_ID"
         fi
 
-        if [ -n "$ARTIFACT_RUN_ID" ] && [ "$ARTIFACT_RUN_ID" != "null" ]; then
+        if [ -n "$ARTIFACT_RUN_ID" ] && [ "$ARTIFACT_RUN_ID" != "null" ] && [ "$ARTIFACT_RUN_ID" != "" ]; then
           echo "Downloading artifact from run: $ARTIFACT_RUN_ID"
           # Download the artifact from that run
-          gh run download $ARTIFACT_RUN_ID --name governance-lambda --dir governance-artifact
+          gh run download $ARTIFACT_RUN_ID --name governance-lambda --dir governance-artifact 2>&1
+          DOWNLOAD_STATUS=$?
 
-          if [ $? -eq 0 ] && [ -f "governance-artifact/lambda.zip" ]; then
+          if [ $DOWNLOAD_STATUS -eq 0 ] && [ -f "governance-artifact/lambda.zip" ]; then
             echo "✓ Successfully downloaded governance artifact"
             echo "artifact_downloaded=true" >> $GITHUB_OUTPUT
           else
-            echo "✗ Failed to download governance artifact"
+            echo "✗ Failed to download governance artifact (exit code: $DOWNLOAD_STATUS)"
             echo "artifact_downloaded=false" >> $GITHUB_OUTPUT
           fi
         else
