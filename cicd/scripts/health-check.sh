@@ -46,11 +46,11 @@ if [ -z "$ALB_DNS" ] || [ "$ALB_SCHEME" = "internal" ]; then
     # Check Axon if needed
     if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "axon" ]; then
         AXON_RUNNING=$(aws ecs describe-services \
-            --cluster $CLUSTER_NAME \
-            --services ${PROJECT_NAME}-axon \
-            --query 'services[0].runningCount' \
-            --output text 2>/dev/null || echo "0")
-        
+        --cluster $CLUSTER_NAME \
+        --services ${PROJECT_NAME}-axon \
+        --query 'services[0].runningCount' \
+        --output text 2>/dev/null || echo "0")
+    
         AXON_DESIRED=$(aws ecs describe-services \
             --cluster $CLUSTER_NAME \
             --services ${PROJECT_NAME}-axon \
@@ -93,11 +93,11 @@ if [ -z "$ALB_DNS" ] || [ "$ALB_SCHEME" = "internal" ]; then
     # Check Orbit if needed
     if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "orbit" ]; then
         ORBIT_RUNNING=$(aws ecs describe-services \
-            --cluster $CLUSTER_NAME \
-            --services ${PROJECT_NAME}-orbit \
-            --query 'services[0].runningCount' \
-            --output text 2>/dev/null || echo "0")
-        
+        --cluster $CLUSTER_NAME \
+        --services ${PROJECT_NAME}-orbit \
+        --query 'services[0].runningCount' \
+        --output text 2>/dev/null || echo "0")
+    
         ORBIT_DESIRED=$(aws ecs describe-services \
             --cluster $CLUSTER_NAME \
             --services ${PROJECT_NAME}-orbit \
@@ -175,13 +175,13 @@ check_endpoint() {
 if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "axon" ]; then
     # Check Axon health (using /reason endpoint as per listener rule)
     AXON_ENDPOINT="http://${ALB_DNS}/reason"
-    check_endpoint "$AXON_ENDPOINT" "Axon" || exit 1
+check_endpoint "$AXON_ENDPOINT" "Axon" || exit 1
 fi
 
 if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "orbit" ]; then
     # Check Orbit health (using /health endpoint as per listener rule)
-    ORBIT_ENDPOINT="http://${ALB_DNS}/health"
-    check_endpoint "$ORBIT_ENDPOINT" "Orbit" || exit 1
+ORBIT_ENDPOINT="http://${ALB_DNS}/health"
+check_endpoint "$ORBIT_ENDPOINT" "Orbit" || exit 1
 fi
 
 echo "✅ All health checks passed"

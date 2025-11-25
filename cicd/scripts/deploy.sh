@@ -167,8 +167,11 @@ if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "orbit" ]; then
         --query "Namespaces[?Name=='${PROJECT_NAME}.local'].Id" \
         --output text 2>/dev/null | head -1 || echo "")
     
+    # Get governance function name (default to project_name-governance if not set)
+    GOVERNANCE_FUNCTION_NAME=${GOVERNANCE_FUNCTION_NAME:-${PROJECT_NAME}-governance}
+
     # Build environment variables
-    ENV_VARS="[{\"name\":\"AWS_REGION\",\"value\":\"${AWS_REGION}\"},{\"name\":\"PORT\",\"value\":\"8080\"},{\"name\":\"AXON_SERVICE_URL\",\"value\":\"http://axon.${PROJECT_NAME}.local/reason\"}"
+    ENV_VARS="[{\"name\":\"AWS_REGION\",\"value\":\"${AWS_REGION}\"},{\"name\":\"PORT\",\"value\":\"8080\"},{\"name\":\"AXON_SERVICE_URL\",\"value\":\"http://axon.${PROJECT_NAME}.local/reason\"},{\"name\":\"GOVERNANCE_FUNCTION_NAME\",\"value\":\"${GOVERNANCE_FUNCTION_NAME}\"}"
     if [ -n "$SECRET_ARN" ] && [ "$SECRET_ARN" != "None" ]; then
         ENV_VARS="${ENV_VARS},{\"name\":\"ORBIT_SECRET_ARN\",\"value\":\"${SECRET_ARN}\"}"
     fi
@@ -341,7 +344,7 @@ if [ -n "$SERVICES" ]; then
             # Show recent events
             echo "Recent events:"
             aws ecs describe-services \
-                --cluster $CLUSTER_NAME \
+        --cluster $CLUSTER_NAME \
                 --services $SERVICE \
                 --query 'services[0].events[:5].[createdAt,message]' \
                 --output table 2>/dev/null || true
