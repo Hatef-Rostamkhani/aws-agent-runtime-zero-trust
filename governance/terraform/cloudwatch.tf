@@ -2,15 +2,6 @@ resource "aws_cloudwatch_log_group" "governance" {
   name              = "/aws/lambda/${var.project_name}-governance"
   retention_in_days = 30
 
-  lifecycle {
-    create_before_destroy = false
-    prevent_destroy = false
-    ignore_changes = [
-      # Allow adoption of existing log group
-      name
-    ]
-  }
-
   tags = {
     Name        = "${var.project_name}-governance-logs"
     Service     = "governance"
