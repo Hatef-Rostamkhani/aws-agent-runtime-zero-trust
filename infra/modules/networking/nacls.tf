@@ -83,7 +83,7 @@ resource "aws_network_acl" "axon_runtime" {
   vpc_id     = aws_vpc.main.id
   subnet_ids = aws_subnet.axon_runtime[*].id
 
-  # Allow inbound traffic only from VPC (for Orbit and VPC endpoints)
+  # Allow inbound traffic from VPC (for Orbit and VPC endpoints)
   ingress {
     protocol   = "-1"
     rule_no    = 100
@@ -93,14 +93,24 @@ resource "aws_network_acl" "axon_runtime" {
     to_port    = 0
   }
 
-  # Allow inbound ephemeral ports for return traffic
+  # Allow inbound ephemeral ports for return traffic from anywhere (NAT Gateway return traffic)
   ingress {
     protocol   = "tcp"
     rule_no    = 110
     action     = "allow"
-    cidr_block = var.vpc_cidr
+    cidr_block = "0.0.0.0/0"
     from_port  = 1024
     to_port    = 65535
+  }
+
+  # Allow inbound HTTPS for return traffic (if needed)
+  ingress {
+    protocol   = "tcp"
+    rule_no    = 120
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 443
+    to_port    = 443
   }
 
   # Allow outbound HTTPS to anywhere (for ECR via VPC endpoints or NAT Gateway fallback)
