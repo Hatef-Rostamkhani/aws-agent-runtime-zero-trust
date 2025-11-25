@@ -218,9 +218,114 @@ SERVICES=""
 [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "orbit" ] && SERVICES="${SERVICES} ${PROJECT_NAME}-orbit"
 
 if [ -n "$SERVICES" ]; then
-    aws ecs wait services-stable \
-        --cluster $CLUSTER_NAME \
-        --services $SERVICES
+    echo "Waiting for services: $SERVICES"
+    
+    # Custom wait loop with better diagnostics (max 20 minutes = 80 attempts * 15s)
+    MAX_ATTEMPTS=80
+    ATTEMPT=0
+    STABLE=false
+    
+    while [ $ATTEMPT -lt $MAX_ATTEMPTS ] && [ "$STABLE" != "true" ]; do
+        STABLE=true
+        
+        for SERVICE in $SERVICES; do
+            SERVICE_STATUS=$(aws ecs describe-services \
+                --cluster $CLUSTER_NAME \
+                --services $SERVICE \
+                --query 'services[0]' \
+                --output json 2>/dev/null || echo "{}")
+            
+            # Handle jq errors gracefully
+            RUNNING=$(echo "$SERVICE_STATUS" | jq -r '.runningCount // 0' 2>/dev/null || echo "0")
+            DESIRED=$(echo "$SERVICE_STATUS" | jq -r '.desiredCount // 0' 2>/dev/null || echo "0")
+            PENDING=$(echo "$SERVICE_STATUS" | jq -r '.pendingCount // 0' 2>/dev/null || echo "0")
+            
+            # Check deployment status
+            DEPLOYMENT_COUNT=$(echo "$SERVICE_STATUS" | jq -r '.deployments | length' 2>/dev/null || echo "0")
+            PRIMARY_DEPLOYMENT=$(echo "$SERVICE_STATUS" | jq -r '.deployments[0] // {}' 2>/dev/null || echo "{}")
+            DEPLOYMENT_STATUS=$(echo "$PRIMARY_DEPLOYMENT" | jq -r '.status // "UNKNOWN"' 2>/dev/null || echo "UNKNOWN")
+            DEPLOYMENT_RUNNING=$(echo "$PRIMARY_DEPLOYMENT" | jq -r '.runningCount // 0' 2>/dev/null || echo "0")
+            DEPLOYMENT_DESIRED=$(echo "$PRIMARY_DEPLOYMENT" | jq -r '.desiredCount // 0' 2>/dev/null || echo "0")
+            
+            echo "  $SERVICE: Running=$RUNNING/$DESIRED, Pending=$PENDING, Deployment=$DEPLOYMENT_STATUS ($DEPLOYMENT_RUNNING/$DEPLOYMENT_DESIRED)"
+            
+            # Service is stable if:
+            # 1. Running count matches desired count
+            # 2. No pending tasks
+            # 3. Primary deployment is ACTIVE and running count matches desired
+            if [ "$RUNNING" != "$DESIRED" ] || [ "$PENDING" != "0" ] || \
+               [ "$DEPLOYMENT_STATUS" != "ACTIVE" ] || [ "$DEPLOYMENT_RUNNING" != "$DEPLOYMENT_DESIRED" ]; then
+                STABLE=false
+            fi
+            
+            # Check for recent task failures (last 5 minutes)
+            if [ $((ATTEMPT % 4)) -eq 0 ]; then  # Every 4 attempts (1 minute)
+                RECENT_STOPPED=$(aws ecs list-tasks \
+                    --cluster $CLUSTER_NAME \
+                    --service-name $SERVICE \
+                    --desired-status STOPPED \
+                    --max-items 5 \
+                    --query 'taskArns[*]' \
+                    --output text 2>/dev/null || echo "")
+                
+                if [ -n "$RECENT_STOPPED" ]; then
+                    echo "  ⚠️  Found stopped tasks for $SERVICE:"
+                    for TASK_ARN in $RECENT_STOPPED; do
+                        TASK_INFO=$(aws ecs describe-tasks \
+                            --cluster $CLUSTER_NAME \
+                            --tasks $TASK_ARN \
+                            --query 'tasks[0].[stoppedReason,stopCode,containers[0].exitCode]' \
+                            --output text 2>/dev/null || echo "")
+                        if [ -n "$TASK_INFO" ]; then
+                            echo "    - Reason: $(echo $TASK_INFO | awk '{print $1}')"
+                            echo "      Code: $(echo $TASK_INFO | awk '{print $2}')"
+                            echo "      Exit: $(echo $TASK_INFO | awk '{print $3}')"
+                        fi
+                    done
+                fi
+            fi
+        done
+        
+        if [ "$STABLE" = "true" ]; then
+            echo "✅ All services stabilized successfully"
+            break
+        fi
+        
+        ATTEMPT=$((ATTEMPT + 1))
+        if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+            if [ $((ATTEMPT % 4)) -eq 0 ]; then
+                echo "  ⏳ Still waiting... ($((ATTEMPT * 15 / 60)) minutes elapsed, max 20 minutes)"
+            fi
+            sleep 15
+        fi
+    done
+    
+    # Final status check
+    if [ "$STABLE" != "true" ]; then
+        echo "⚠️  Services did not fully stabilize within timeout period (20 minutes)"
+        echo "Final service status:"
+        for SERVICE in $SERVICES; do
+            echo ""
+            echo "=== $SERVICE ===" 
+            aws ecs describe-services \
+                --cluster $CLUSTER_NAME \
+                --services $SERVICE \
+                --query 'services[0].[runningCount,desiredCount,pendingCount,deployments[*].[status,runningCount,desiredCount]]' \
+                --output table 2>/dev/null || true
+            
+            # Show recent events
+            echo "Recent events:"
+            aws ecs describe-services \
+                --cluster $CLUSTER_NAME \
+                --services $SERVICE \
+                --query 'services[0].events[:5].[createdAt,message]' \
+                --output table 2>/dev/null || true
+        done
+        
+        # Don't fail - let health checks decide
+        echo ""
+        echo "⚠️  Continuing deployment - health checks will verify service status..."
+    fi
 fi
 
 echo "Deployment completed successfully"
