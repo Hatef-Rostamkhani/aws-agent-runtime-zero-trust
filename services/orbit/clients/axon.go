@@ -1,7 +1,6 @@
 package clients
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,13 +12,13 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	"github.com/rs/zerolog"
+	"orbit-service/sigv4"
 )
 
 type AxonClient struct {
 	httpClient *http.Client
-	signer     *v4.Signer
+	signer     *sigv4.SigV4Signer
 	logger     zerolog.Logger
 	baseURL    string
 	region     string
@@ -52,15 +51,28 @@ func NewAxonClient(logger zerolog.Logger) (*AxonClient, error) {
 		baseURL = "http://axon/reason"
 	}
 
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(region),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create AWS session: %w", err)
+	// Get credentials from environment or AWS session
+	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
+	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+
+	if accessKey == "" || secretKey == "" {
+		// Fall back to AWS session credentials
+		sess, err := session.NewSession(&aws.Config{
+			Region: aws.String(region),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create AWS session: %w", err)
+		}
+
+		creds, err := sess.Config.Credentials.Get()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get AWS credentials: %w", err)
+		}
+		accessKey = creds.AccessKeyID
+		secretKey = creds.SecretAccessKey
 	}
 
-	creds := sess.Config.Credentials
-	signer := v4.NewSigner(creds)
+	signer := sigv4.NewSigV4Signer(accessKey, secretKey, region, "execute-api")
 
 	cb := &CircuitBreaker{
 		maxFailures:  5,
@@ -133,9 +145,7 @@ func (c *AxonClient) callAxonOnce(ctx context.Context, correlationID string) (st
 
 	// Sign request with SigV4
 	// For GET requests, body is nil
-	signBody := bytes.NewReader([]byte{})
-	_, err = c.signer.Sign(req, signBody, "execute-api", c.region, time.Now())
-	if err != nil {
+	if err := c.signer.SignRequest(req, nil); err != nil {
 		return "", fmt.Errorf("failed to sign request: %w", err)
 	}
 
