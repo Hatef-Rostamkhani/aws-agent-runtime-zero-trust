@@ -13,6 +13,7 @@ resource "aws_appmesh_virtual_node" "axon" {
       health_check {
         protocol            = "http"
         path                = "/health"
+        port                = 8080
         healthy_threshold   = 2
         unhealthy_threshold = 2
         timeout_millis      = 2000
@@ -58,6 +59,7 @@ resource "aws_appmesh_virtual_node" "orbit" {
       health_check {
         protocol            = "http"
         path                = "/health"
+        port                = 8080
         healthy_threshold   = 2
         unhealthy_threshold = 2
         timeout_millis      = 2000
