@@ -32,7 +32,7 @@ resource "aws_lambda_function" "secrets_rotation" {
 data "archive_file" "rotation_zip" {
   type        = "zip"
   output_path = "${path.module}/rotation.zip"
-  source_dir  = "${path.module}/../lambda/rotation"
+  source_dir  = "${path.module}/lambda/rotation"
 }
 
 resource "aws_iam_role" "secrets_rotation" {

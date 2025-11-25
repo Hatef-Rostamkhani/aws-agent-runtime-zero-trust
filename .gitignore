@@ -77,4 +77,8 @@ htmlcov/
 .cache/
 tmp/
 temp/
+*.zip
+
+# Terraform generated files
+infra/modules/secrets/rotation.zip
 

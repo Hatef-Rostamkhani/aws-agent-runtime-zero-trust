@@ -57,15 +57,21 @@ Production-grade AWS infrastructure implementing zero-trust security principles 
 │   ├── dashboards/                # CloudWatch dashboards
 │   ├── alarms/                    # CloudWatch alarms
 │   └── README.md                  # Observability documentation
-├── docs/                          # Architecture documentation
-│   ├── architecture.md            # System architecture
-│   ├── failure-resilience.md      # Failure and resilience plan
+├── docs/                          # Complete documentation suite
+│   ├── architecture.md            # System architecture overview
+│   ├── failure-resilience.md      # Failure handling and resilience
+│   ├── runbook.md                 # Operations procedures and runbook
+│   ├── setup-guide.md             # Complete setup and deployment guide
+│   ├── api.md                     # API documentation and examples
+│   ├── troubleshooting.md         # Common issues and solutions
+│   ├── performance.md             # Performance characteristics and optimization
 │   ├── security.md                # Zero-trust security model
-│   └── runbook.md                 # Operations runbook
+│   └── sigv4-implementation.md    # SigV4 signing implementation
 └── scripts/                       # Utility scripts
     ├── setup.sh                   # Initial project setup
     ├── setup-terraform-backend.sh # Setup S3 & DynamoDB for Terraform state
     ├── first-deploy.sh            # First infrastructure deployment
+    ├── health-check.sh            # System health verification
     └── README.md                  # Scripts documentation
 ```
 
@@ -93,80 +99,246 @@ cd tasks
 
 See [Task Execution Guide](./tasks/README.md) for detailed implementation instructions.
 
-## Quick Start
+## Setup Guide
 
 ### Prerequisites
-- AWS CLI v2.x configured with appropriate credentials
-- Terraform >= 1.5.0
-- Docker >= 24.0
-- kubectl (if using EKS)
-- GitHub account for CI/CD
 
-### Setup Steps
+#### AWS Account Setup
+1. **Create AWS Account** or use existing account
+2. **Configure AWS CLI**:
+   ```bash
+   aws configure
+   # Enter your access key, secret key, default region (us-east-1), and output format (json)
+   ```
 
-1. **Clone and Initialize**
+3. **Verify Account Limits**:
+   - ECS: 10 clusters, 100 services
+   - Lambda: 1000 concurrent executions
+   - DynamoDB: 40 read/write capacity units
+
+#### Local Development Setup
+1. **Install Required Tools**:
+   ```bash
+   # Terraform
+   curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+   sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+   sudo apt-get update && sudo apt-get install terraform
+
+   # AWS CLI v2
+   curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+   unzip awscliv2.zip
+   sudo ./aws/install
+
+   # Docker
+   curl -fsSL https://get.docker.com -o get-docker.sh
+   sudo sh get-docker.sh
+
+   # Go (for local development)
+   wget https://golang.org/dl/go1.21.0.linux-amd64.tar.gz
+   sudo tar -C /usr/local -xzf go1.21.0.linux-amd64.tar.gz
+   export PATH=$PATH:/usr/local/go/bin
+   ```
+
+2. **Clone Repository**:
+   ```bash
+   git clone https://github.com/your-org/aws-agent-runtime-zero-trust.git
+   cd aws-agent-runtime-zero-trust
+   ```
+
+3. **Initialize Project**:
+   ```bash
+   ./scripts/setup.sh
+   ```
+
+### Infrastructure Deployment
+
+#### Step 1: Configure Environment
 ```bash
-git clone <repository-url>
-cd aws-agent-runtime-zero-trust
-./scripts/setup.sh
+# Copy and edit environment configuration
+cp .env.local.example .env.local
+nano .env.local
+
+# Required variables:
+# AWS_REGION=us-east-1
+# PROJECT_NAME=agent-runtime
+# ENVIRONMENT=dev
 ```
 
-2. **Configure AWS Credentials**
+#### Step 2: Deploy Infrastructure
 ```bash
-export AWS_PROFILE=your-profile
-export AWS_REGION=us-east-1
+cd infra
+
+# Initialize Terraform
+terraform init
+
+# Review planned changes
+terraform plan -out=tfplan
+
+# Apply changes
+terraform apply tfplan
 ```
 
-3. **Setup Terraform Backend (First Time Only)**
+#### Step 3: Verify Infrastructure
 ```bash
-# This creates S3 bucket and DynamoDB table for Terraform state
-./scripts/setup-terraform-backend.sh
+# Check VPC creation
+aws ec2 describe-vpcs --filters Name=tag:Name,Values=${PROJECT_NAME}-vpc
+
+# Verify ECS cluster
+aws ecs describe-clusters --clusters ${PROJECT_NAME}-cluster
+
+# Check ECR repositories
+aws ecr describe-repositories --repository-names ${PROJECT_NAME}/axon ${PROJECT_NAME}/orbit
 ```
 
-4. **First Infrastructure Deployment**
+### Service Deployment
+
+#### Step 1: Build Services
 ```bash
-# This deploys infrastructure and creates IAM roles for GitHub Actions
-./scripts/first-deploy.sh
+# Build Axon service
+cd services/axon
+docker build -t axon:latest .
+
+# Build Orbit service
+cd ../orbit
+docker build -t orbit:latest .
 ```
 
-5. **Configure GitHub Secrets**
-After first deployment, add these secrets to GitHub:
-- `AWS_REGION`: us-east-1
-- `TERRAFORM_STATE_BUCKET`: (from setup script output)
-- `TERRAFORM_STATE_DYNAMODB_TABLE`: (from setup script output)
-- `TERRAFORM_STATE_KEY`: agent-runtime/terraform.tfstate
-- `AWS_INFRA_DEPLOY_ROLE`: (from terraform output after first deploy)
-
-6. **Future Deployments**
-After initial setup, infrastructure will deploy automatically via GitHub Actions when you push changes to `infra/` directory.
-
-4. **Build and Deploy Services**
+#### Step 2: Push Images to ECR
 ```bash
 # Authenticate with ECR
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com
 
-# Build services
-cd services/axon && docker build -t axon-mini-service .
-cd ../orbit && docker build -t orbit-dispatcher .
+# Tag and push Axon
+docker tag axon:latest ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/${PROJECT_NAME}/axon:latest
+docker push ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/${PROJECT_NAME}/axon:latest
 
-# Push to ECR (handled by CI/CD in production)
+# Tag and push Orbit
+docker tag orbit:latest ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/${PROJECT_NAME}/orbit:latest
+docker push ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/${PROJECT_NAME}/orbit:latest
 ```
 
-5. **Deploy Governance Layer**
+#### Step 3: Deploy Services
 ```bash
-cd governance/lambda
+cd infra
+
+# Update task definitions with new image URIs
+terraform apply -target=module.ecs
+
+# Deploy services
+aws ecs update-service --cluster ${PROJECT_NAME}-cluster --service ${PROJECT_NAME}-axon --force-new-deployment
+aws ecs update-service --cluster ${PROJECT_NAME}-cluster --service ${PROJECT_NAME}-orbit --force-new-deployment
+```
+
+#### Step 4: Configure Governance
+```bash
+cd governance/terraform
+
+# Deploy governance infrastructure
 terraform init
 terraform apply
+
+# Load default policies
+cd ../scripts
+python load-policies.py
 ```
 
-6. **Verify Deployment**
+### CI/CD Setup
+
+#### GitHub Actions Configuration
+1. **Create GitHub Repository** (if not already done)
+2. **Add Secrets** to repository settings:
+   ```
+   AWS_REGION: us-east-1
+   AWS_ECR_REGISTRY: <account-id>.dkr.ecr.us-east-1.amazonaws.com
+   AWS_GITHUB_ACTIONS_ROLE: arn:aws:iam::<account-id>:role/github-actions-role
+   AWS_DEPLOY_ROLE: arn:aws:iam::<account-id>:role/deploy-role
+   PROJECT_NAME: agent-runtime
+   ```
+3. **Enable GitHub Actions** in repository settings
+4. **Configure Branch Protection**:
+   - Require pull request reviews
+   - Require status checks (build, security, test)
+   - Require branches to be up to date
+
+#### OIDC Provider Setup
 ```bash
-# Check service health
-curl https://<alb-endpoint>/health
-
-# Test governance flow
-./scripts/test-governance.sh
+# This is handled by Terraform in infra/modules/cicd/github-oidc.tf
+cd infra
+terraform apply -target=module.cicd
 ```
+
+### Verification
+
+#### Health Checks
+```bash
+# Get ALB DNS name
+ALB_DNS=$(aws elbv2 describe-load-balancers --names ${PROJECT_NAME}-alb --query 'LoadBalancers[0].DNSName' --output text)
+
+# Test health endpoints
+curl -f https://${ALB_DNS}/health
+
+# Test governance
+curl -X POST https://${ALB_DNS}/dispatch \
+  -H "Content-Type: application/json" \
+  -d "{}"
+```
+
+#### Monitoring Setup
+```bash
+# Check CloudWatch dashboards
+aws cloudwatch list-dashboards --query "DashboardEntries[?contains(DashboardName, \`${PROJECT_NAME}\`)]"
+
+# Verify alarms
+aws cloudwatch describe-alarms --alarm-name-prefix "${PROJECT_NAME}"
+
+# Check log groups
+aws logs describe-log-groups --log-group-name-prefix "/ecs/${PROJECT_NAME}"
+```
+
+### Troubleshooting Common Issues
+
+#### Terraform Apply Fails
+```bash
+# Check AWS limits
+aws service-quotas get-service-quota --service-code ecs --quota-code L-21DAFBDC
+
+# Verify permissions
+aws sts get-caller-identity
+
+# Check Terraform state
+cd infra
+terraform state list
+```
+
+#### Service Deployment Fails
+```bash
+# Check ECS service events
+aws ecs describe-services --cluster ${PROJECT_NAME}-cluster --services ${PROJECT_NAME}-axon \
+  --query 'services[0].events[0:5]'
+
+# Check task status
+aws ecs list-tasks --cluster ${PROJECT_NAME}-cluster --service-name ${PROJECT_NAME}-axon
+aws ecs describe-tasks --cluster ${PROJECT_NAME}-cluster --tasks <task-arn>
+```
+
+#### Image Push Fails
+```bash
+# Check ECR permissions
+aws ecr get-authorization-token
+
+# Verify repository exists
+aws ecr describe-repositories --repository-names ${PROJECT_NAME}/axon
+```
+
+### Next Steps
+
+1. **Configure Monitoring**: Set up alerts and notifications
+2. **Security Review**: Run security audit and penetration testing
+3. **Performance Testing**: Load test the system
+4. **Documentation**: Complete operational runbooks
+5. **Backup Strategy**: Configure automated backups
+
+For detailed troubleshooting and advanced configuration, see the [complete setup guide](docs/setup-guide.md).
 
 ## Security Model
 
@@ -291,10 +463,29 @@ curl https://<alb-endpoint>/health
 
 ## Documentation
 
-- [Architecture Overview](docs/architecture.md)
-- [Failure & Resilience Plan](docs/failure-resilience.md)
-- [Zero-Trust Security Model](docs/security.md)
-- [Operations Runbook](docs/runbook.md)
+### Architecture & Design
+- [System Architecture](docs/architecture.md) - High-level system overview and component details
+- [API Documentation](docs/api.md) - Complete API reference with examples in Python, JavaScript, and Go
+- [Performance Characteristics](docs/performance.md) - Benchmarks, optimization guidelines, and monitoring
+
+### Operations & Maintenance
+- [Setup Guide](docs/setup-guide.md) - Complete deployment and configuration instructions
+- [Operations Runbook](docs/runbook.md) - Daily operations, incident response, and maintenance procedures
+- [Failure & Resilience Plan](docs/failure-resilience.md) - Failure scenarios, recovery procedures, and resilience strategies
+- [Troubleshooting Guide](docs/troubleshooting.md) - Common issues, diagnostic tools, and solutions
+
+### Security & Compliance
+- [Zero-Trust Security Model](docs/security.md) - Security architecture and threat mitigation
+- [SigV4 Implementation](docs/sigv4-implementation.md) - AWS signature version 4 signing details
+
+### Task Documentation
+- [Task 1: Infrastructure](tasks/task-1-infrastructure.md) - VPC, ECS, and networking setup
+- [Task 2: Microservices](tasks/task-2-microservices.md) - Axon and Orbit service development
+- [Task 3: Governance](tasks/task-3-governance.md) - Authorization and policy layer
+- [Task 4: CI/CD](tasks/task-4-cicd.md) - Pipeline and automation setup
+- [Task 5: Observability](tasks/task-5-observability.md) - Monitoring and logging implementation
+- [Task 6: Security](tasks/task-6-security.md) - Zero-trust validation and hardening
+- [Task 7: Documentation](tasks/task-7-documentation.md) - Complete documentation suite
 
 ## Contributing
 

@@ -11,6 +11,8 @@ DOC_FILES=(
   "../docs/runbook.md"
   "../docs/setup-guide.md"
   "../docs/api.md"
+  "../docs/troubleshooting.md"
+  "../docs/performance.md"
 )
 
 for file in "${DOC_FILES[@]}"; do

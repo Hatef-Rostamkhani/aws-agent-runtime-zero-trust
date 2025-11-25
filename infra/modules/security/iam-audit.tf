@@ -42,8 +42,8 @@ resource "aws_iam_role_policy" "config" {
         Resource = aws_s3_bucket.config.arn
       },
       {
-        Effect = "Allow"
-        Action = "s3:GetObject"
+        Effect   = "Allow"
+        Action   = "s3:GetObject"
         Resource = "${aws_s3_bucket.config.arn}/*"
       },
       {

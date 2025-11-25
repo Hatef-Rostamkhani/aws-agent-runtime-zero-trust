@@ -41,13 +41,13 @@ resource "aws_cloudwatch_metric_alarm" "iam_policy_changes" {
   alarm_name          = "${var.project_name}-iam-policy-changes"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "1"
-  metric_name = "PolicyEventCount"
-  namespace   = "AWS/CloudTrail"
-  period      = "300"
-  statistic   = "Sum"
-  threshold   = "0"
-  alarm_description = "IAM policy changes detected"
-  alarm_actions     = [aws_sns_topic.security_alerts.arn]
+  metric_name         = "PolicyEventCount"
+  namespace           = "AWS/CloudTrail"
+  period              = "300"
+  statistic           = "Sum"
+  threshold           = "0"
+  alarm_description   = "IAM policy changes detected"
+  alarm_actions       = [aws_sns_topic.security_alerts.arn]
 
   tags = {
     Name = "${var.project_name}-iam-policy-alarm"
@@ -88,7 +88,7 @@ resource "aws_cloudwatch_dashboard" "security" {
 
         properties = {
           metrics = [
-            ["AWS/CloudTrail", "UnauthorizedAttemptCount", { "stat": "Sum" }]
+            ["AWS/CloudTrail", "UnauthorizedAttemptCount", { "stat" : "Sum" }]
           ]
           view    = "timeSeries"
           stacked = false
@@ -106,7 +106,7 @@ resource "aws_cloudwatch_dashboard" "security" {
 
         properties = {
           metrics = [
-            ["AWS/CloudTrail", "SecurityGroupEventCount", { "stat": "Sum" }]
+            ["AWS/CloudTrail", "SecurityGroupEventCount", { "stat" : "Sum" }]
           ]
           view    = "timeSeries"
           stacked = false

@@ -94,10 +94,12 @@ module "kms" {
 module "secrets" {
   source = "./modules/secrets"
 
-  project_name     = var.project_name
-  environment      = var.environment
-  axon_kms_key_id  = module.kms.axon_key_id
-  orbit_kms_key_id = module.kms.orbit_key_id
+  project_name       = var.project_name
+  environment        = var.environment
+  axon_kms_key_id    = module.kms.axon_key_id
+  orbit_kms_key_id   = module.kms.orbit_key_id
+  vpc_id             = module.networking.vpc_id
+  private_subnet_ids = module.networking.private_subnet_ids
 }
 
 # IAM Module
