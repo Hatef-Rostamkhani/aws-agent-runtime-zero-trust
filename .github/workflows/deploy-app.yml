@@ -92,14 +92,38 @@ jobs:
     - name: Download Lambda package
       id: download-lambda
       continue-on-error: true
-      uses: actions/download-artifact@v4
-      with:
-        name: governance-lambda
-        # Try current run first, then workflow_run if available
-        run-id: ${{ github.event.workflow_run.id || github.run_id }}
+      run: |
+        echo "Looking for governance-lambda artifact..."
+
+        # If triggered by workflow_run, use that run ID
+        if [ -n "${{ github.event.workflow_run.id }}" ]; then
+          ARTIFACT_RUN_ID="${{ github.event.workflow_run.id }}"
+          echo "Using workflow_run ID: $ARTIFACT_RUN_ID"
+        else
+          # Find the most recent successful "Build and Push" workflow run
+          ARTIFACT_RUN_ID=$(gh run list --workflow="build.yml" --status=success --limit=1 --json databaseId --jq '.[0].databaseId' 2>/dev/null)
+          echo "Found build run ID: $ARTIFACT_RUN_ID"
+        fi
+
+        if [ -n "$ARTIFACT_RUN_ID" ] && [ "$ARTIFACT_RUN_ID" != "null" ]; then
+          echo "Downloading artifact from run: $ARTIFACT_RUN_ID"
+          # Download the artifact from that run
+          gh run download $ARTIFACT_RUN_ID --name governance-lambda --dir governance-artifact
+
+          if [ $? -eq 0 ] && [ -f "governance-artifact/lambda.zip" ]; then
+            echo "✓ Successfully downloaded governance artifact"
+            echo "artifact_downloaded=true" >> $GITHUB_OUTPUT
+          else
+            echo "✗ Failed to download governance artifact"
+            echo "artifact_downloaded=false" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "✗ No suitable build run found"
+          echo "artifact_downloaded=false" >> $GITHUB_OUTPUT
+        fi
 
     - name: Deploy Governance Lambda (if artifact exists)
-      if: steps.download-lambda.outcome == 'success'
+      if: steps.download-lambda.outputs.artifact_downloaded == 'true'
       run: |
         echo "✓ Governance Lambda artifact found - deploying..."
         cd governance/terraform

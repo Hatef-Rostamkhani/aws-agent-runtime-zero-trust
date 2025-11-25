@@ -1,9 +1,3 @@
-data "archive_file" "lambda_zip" {
-  type        = "zip"
-  output_path = "${path.module}/lambda.zip"
-  source_dir  = "${path.module}/../lambda"
-}
-
 resource "aws_lambda_function" "governance" {
   function_name = "${var.project_name}-governance"
   runtime       = "python3.9"
@@ -11,8 +5,8 @@ resource "aws_lambda_function" "governance" {
   timeout       = 30
   memory_size   = 256
 
-  filename         = data.archive_file.lambda_zip.output_path
-  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+  filename         = "${path.module}/../../governance-artifact/lambda.zip"
+  source_code_hash = filebase64sha256("${path.module}/../../governance-artifact/lambda.zip")
 
   role = aws_iam_role.governance_lambda.arn
 
