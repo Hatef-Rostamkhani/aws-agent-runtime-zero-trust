@@ -20,15 +20,15 @@ output "governance_dashboard_name" {
 
 output "axon_log_group_name" {
   description = "Name of the Axon CloudWatch log group"
-  value       = aws_cloudwatch_log_group.axon.name
+  value       = data.aws_cloudwatch_log_group.axon.name
 }
 
 output "orbit_log_group_name" {
   description = "Name of the Orbit CloudWatch log group"
-  value       = aws_cloudwatch_log_group.orbit.name
+  value       = data.aws_cloudwatch_log_group.orbit.name
 }
 
 output "governance_log_group_name" {
   description = "Name of the Governance CloudWatch log group"
-  value       = aws_cloudwatch_log_group.governance.name
+  value       = data.aws_cloudwatch_log_group.governance.name
 }
