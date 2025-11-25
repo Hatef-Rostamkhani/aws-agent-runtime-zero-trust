@@ -94,7 +94,6 @@ jobs:
       continue-on-error: true
       uses: actions/download-artifact@v4
       with:
-        name: governance-lambda-*
         pattern: governance-lambda-*
         merge-multiple: true
         # Try current run first, then workflow_run if available
