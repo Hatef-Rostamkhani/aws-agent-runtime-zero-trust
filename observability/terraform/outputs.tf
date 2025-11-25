@@ -30,5 +30,5 @@ output "orbit_log_group_name" {
 
 output "governance_log_group_name" {
   description = "Name of the Governance CloudWatch log group"
-  value       = data.aws_cloudwatch_log_group.governance.name
+  value       = aws_cloudwatch_log_group.governance.name
 }

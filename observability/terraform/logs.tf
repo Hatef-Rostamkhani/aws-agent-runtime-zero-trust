@@ -1,4 +1,4 @@
-# CloudWatch Log Groups (data sources for existing groups created by ECS/Lambda)
+# CloudWatch Log Groups (data sources for existing groups created by ECS, resource for Lambda)
 data "aws_cloudwatch_log_group" "axon" {
   name = "/ecs/${var.project_name}-axon"
 }
@@ -7,8 +7,17 @@ data "aws_cloudwatch_log_group" "orbit" {
   name = "/ecs/${var.project_name}-orbit"
 }
 
-data "aws_cloudwatch_log_group" "governance" {
-  name = "/aws/lambda/${var.project_name}-governance"
+# Governance Lambda log group (created as resource since Lambda may not be deployed yet)
+resource "aws_cloudwatch_log_group" "governance" {
+  name              = "/aws/lambda/${var.project_name}-governance"
+  retention_in_days = 30
+  # Note: KMS encryption will be applied when governance Lambda is deployed
+
+  tags = {
+    Name        = "${var.project_name}-governance-logs"
+    Service     = "governance"
+    Environment = var.environment
+  }
 }
 
 # Log Metric Filters for custom metrics
@@ -41,7 +50,7 @@ resource "aws_cloudwatch_log_metric_filter" "orbit_requests" {
 resource "aws_cloudwatch_log_metric_filter" "governance_denials" {
   name           = "${var.project_name}-governance-denials"
   pattern        = "\"allowed\":false"
-  log_group_name = data.aws_cloudwatch_log_group.governance.name
+  log_group_name = aws_cloudwatch_log_group.governance.name
 
   metric_transformation {
     name      = "DenialCount"
@@ -58,7 +67,7 @@ resource "aws_cloudwatch_query_definition" "error_analysis" {
   log_group_names = [
     data.aws_cloudwatch_log_group.axon.name,
     data.aws_cloudwatch_log_group.orbit.name,
-    data.aws_cloudwatch_log_group.governance.name
+    aws_cloudwatch_log_group.governance.name
   ]
 
   query_string = <<EOF
@@ -74,7 +83,7 @@ resource "aws_cloudwatch_query_definition" "request_tracing" {
 
   log_group_names = [
     data.aws_cloudwatch_log_group.orbit.name,
-    data.aws_cloudwatch_log_group.governance.name,
+    aws_cloudwatch_log_group.governance.name,
     data.aws_cloudwatch_log_group.axon.name
   ]
 
