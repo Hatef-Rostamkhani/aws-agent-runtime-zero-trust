@@ -69,18 +69,21 @@ jobs:
 
         # Check if infrastructure components exist via AWS APIs
         echo "Checking infrastructure components..."
+        echo "PROJECT_NAME: ${{ env.PROJECT_NAME }}"
 
-        # Check VPC exists
-        VPC_EXISTS=$(aws ec2 describe-vpcs \
+        # Get VPC ID
+        VPC_ID=$(aws ec2 describe-vpcs \
           --filters "Name=tag:Name,Values=${{ env.PROJECT_NAME }}-vpc" \
-          --query 'length(Vpcs)' \
-          --output text 2>/dev/null || echo "0")
+          --query 'Vpcs[0].VpcId' \
+          --output text 2>/dev/null || echo "")
 
-        if [ "$VPC_EXISTS" = "0" ]; then
+        if [ -z "$VPC_ID" ] || [ "$VPC_ID" = "None" ]; then
           echo "::error::VPC '${{ env.PROJECT_NAME }}-vpc' not found."
           echo "::error::Please ensure infrastructure is deployed."
           exit 1
         fi
+
+        echo "Found VPC: $VPC_ID"
 
         # Check subnets exist
         SUBNET_COUNT=$(aws ec2 describe-subnets \
@@ -89,11 +92,18 @@ jobs:
           --output text 2>/dev/null || echo "0")
 
         if [ "$SUBNET_COUNT" = "0" ]; then
-          echo "::error::No private subnets found."
-          echo "::error::Please ensure infrastructure is deployed."
+          echo "Debug: Checking subnet names in VPC $VPC_ID..."
+          aws ec2 describe-subnets \
+            --filters "Name=vpc-id,Values=$VPC_ID" \
+            --query 'Subnets[*].{ID:SubnetId, Name:Tags[?Key==`Name`].Value|[0]}' \
+            --output table 2>/dev/null || echo "Could not list subnets"
+
+          echo "::error::No private subnets found in VPC $VPC_ID."
+          echo "::error::Please ensure private subnets are created with 'Name' tag containing 'private'."
           exit 1
         fi
 
+        echo "✓ Found $SUBNET_COUNT private subnets"
         echo "✓ Infrastructure components found"
 
         # Check if ECS services exist (they may have desired_count=0 initially)
