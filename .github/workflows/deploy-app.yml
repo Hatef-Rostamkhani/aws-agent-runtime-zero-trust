@@ -94,8 +94,7 @@ jobs:
       continue-on-error: true
       uses: actions/download-artifact@v4
       with:
-        pattern: governance-lambda-*
-        merge-multiple: true
+        name: governance-lambda
         # Try current run first, then workflow_run if available
         run-id: ${{ github.event.workflow_run.id || github.run_id }}
 
