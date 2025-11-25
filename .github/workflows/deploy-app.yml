@@ -89,6 +89,31 @@ jobs:
         
         echo "✓ Infrastructure is deployed and ready"
 
+    - name: Find Governance Lambda artifact
+      id: find-artifact
+      continue-on-error: true
+      run: |
+        # Try to find the governance lambda artifact from recent workflow runs
+        echo "Looking for governance-lambda artifact..."
+
+        # If triggered by workflow_run, use that run ID
+        if [ -n "${{ github.event.workflow_run.id }}" ]; then
+          ARTIFACT_RUN_ID="${{ github.event.workflow_run.id }}"
+          echo "Using workflow_run ID: $ARTIFACT_RUN_ID"
+        else
+          # Find the most recent successful "Build and Push" workflow run
+          ARTIFACT_RUN_ID=$(gh api repos/${{ github.repository }}/actions/workflows/build.yml/runs \
+            --jq '.workflow_runs[] | select(.conclusion == "success") | .id' | head -1)
+          echo "Found recent build run ID: $ARTIFACT_RUN_ID"
+        fi
+
+        if [ -n "$ARTIFACT_RUN_ID" ]; then
+          echo "artifact_run_id=$ARTIFACT_RUN_ID" >> $GITHUB_OUTPUT
+          echo "✓ Found workflow run with potential artifact"
+        else
+          echo "✗ No suitable workflow run found"
+        fi
+
     - name: Download Lambda package
       id: download-lambda
       continue-on-error: true
@@ -97,12 +122,12 @@ jobs:
         name: governance-lambda-*
         pattern: governance-lambda-*
         merge-multiple: true
-        # When triggered by workflow_run, download from that workflow run
-        run-id: ${{ github.event.workflow_run.id || github.run_id }}
+        run-id: ${{ steps.find-artifact.outputs.artifact_run_id || github.run_id }}
 
-    - name: Deploy Governance Lambda
+    - name: Deploy Governance Lambda (if artifact exists)
       if: steps.download-lambda.outcome == 'success'
       run: |
+        echo "✓ Governance Lambda artifact found - deploying..."
         cd governance/terraform
         terraform init -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
           -backend-config="dynamodb_table=${{ secrets.TERRAFORM_STATE_DYNAMODB_TABLE }}" \
