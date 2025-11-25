@@ -257,12 +257,14 @@ jobs:
 
         # Try to import existing log group if it exists (ignore errors)
         echo "Importing existing CloudWatch log group (if exists)..."
-        terraform import aws_cloudwatch_log_group.governance "/aws/lambda/${{ env.PROJECT_NAME }}-governance" 2>/dev/null || echo "Log group doesn't exist yet, will be created"
+        terraform import aws_cloudwatch_log_group.governance "/aws/lambda/${{ env.PROJECT_NAME }}-governance" 2>&1 || echo "Log group doesn't exist yet, will be created"
 
         # Run terraform plan first to see what will be created
         echo "Running terraform plan..."
+        set +e  # Don't exit on error
         PLAN_OUTPUT=$(terraform plan -var-file=temp.tfvars 2>&1)
         PLAN_EXIT=$?
+        set -e  # Re-enable exit on error
 
         # Check if plan failed due to state lock
         if [ $PLAN_EXIT -ne 0 ] && echo "$PLAN_OUTPUT" | grep -q "Error acquiring the state lock"; then
@@ -274,15 +276,24 @@ jobs:
             # Retry plan
             echo "Retrying terraform plan..."
             terraform plan -var-file=temp.tfvars
+          else
+            echo "$PLAN_OUTPUT"
+            exit 1
           fi
+        elif [ $PLAN_EXIT -ne 0 ]; then
+          echo "Terraform plan failed with exit code $PLAN_EXIT:"
+          echo "$PLAN_OUTPUT"
+          exit 1
         else
           echo "$PLAN_OUTPUT"
         fi
 
         # Run terraform apply with no interactivity
         echo "Running terraform apply..."
+        set +e  # Don't exit on error
         APPLY_OUTPUT=$(terraform apply -auto-approve -input=false -var-file=temp.tfvars 2>&1)
         APPLY_EXIT=$?
+        set -e  # Re-enable exit on error
 
         # Check if apply failed due to state lock
         if [ $APPLY_EXIT -ne 0 ] && echo "$APPLY_OUTPUT" | grep -q "Error acquiring the state lock"; then
@@ -295,10 +306,12 @@ jobs:
             echo "Retrying terraform apply..."
             terraform apply -auto-approve -input=false -var-file=temp.tfvars
           else
+            echo "Terraform apply failed with state lock but couldn't extract lock ID:"
             echo "$APPLY_OUTPUT"
             exit 1
           fi
         elif [ $APPLY_EXIT -ne 0 ]; then
+          echo "Terraform apply failed with exit code $APPLY_EXIT:"
           echo "$APPLY_OUTPUT"
           exit 1
         else
