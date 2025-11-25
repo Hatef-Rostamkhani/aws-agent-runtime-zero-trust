@@ -44,6 +44,11 @@ jobs:
         role-to-assume: ${{ secrets.AWS_INFRA_DEPLOY_ROLE }}
         aws-region: ${{ env.AWS_REGION }}
 
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.5.0"
+
     - name: Verify Infrastructure Exists
       run: |
         CLUSTER_NAME="${PROJECT_NAME}-cluster"
@@ -154,11 +159,6 @@ jobs:
           echo "artifact_downloaded=false" >> $GITHUB_OUTPUT
         fi
 
-    - name: Setup Terraform
-      if: steps.download-lambda.outputs.artifact_downloaded == 'true'
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: "1.5.0"
 
     - name: Get Infrastructure Outputs
       id: get-outputs
