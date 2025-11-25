@@ -16,6 +16,10 @@ resource "aws_lb_target_group" "axon" {
     matcher             = "200"
   }
 
+  lifecycle {
+    create_before_destroy = true
+  }
+
   tags = {
     Name = "${var.project_name}-axon-tg"
   }
@@ -37,6 +41,10 @@ resource "aws_lb_target_group" "orbit" {
     path                = "/health"
     protocol            = "HTTP"
     matcher             = "200"
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 
   tags = {

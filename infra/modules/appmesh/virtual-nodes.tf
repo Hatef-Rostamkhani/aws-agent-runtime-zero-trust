@@ -28,6 +28,10 @@ resource "aws_appmesh_virtual_node" "axon" {
     }
   }
 
+  lifecycle {
+    create_before_destroy = true
+  }
+
   tags = {
     Name = "${var.project_name}-axon-vnode"
   }
@@ -67,6 +71,10 @@ resource "aws_appmesh_virtual_node" "orbit" {
         namespace_name = aws_service_discovery_private_dns_namespace.main.name
       }
     }
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 
   tags = {
