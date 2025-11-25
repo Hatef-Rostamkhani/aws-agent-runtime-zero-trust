@@ -20,17 +20,24 @@ type ReasonResponse struct {
 
 // ReasonHandler handles reasoning requests
 func ReasonHandler(logger zerolog.Logger) http.HandlerFunc {
+	return ReasonHandlerWithSigV4(logger, true)
+}
+
+// ReasonHandlerWithSigV4 handles reasoning requests with configurable SigV4 verification
+func ReasonHandlerWithSigV4(logger zerolog.Logger, verifySigV4 bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		correlationID := middleware.GetCorrelationID(r.Context())
 
-		// Verify SigV4 signature
-		if err := verifySigV4(r); err != nil {
-			logger.Error().
-				Err(err).
-				Str("correlation_id", correlationID).
-				Msg("SIGV4_ERROR: signature verification failed")
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
+		// Verify SigV4 signature if enabled
+		if verifySigV4 {
+			if err := verifySigV4Request(r); err != nil {
+				logger.Error().
+					Err(err).
+					Str("correlation_id", correlationID).
+					Msg("SIGV4_ERROR: signature verification failed")
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
 		}
 
 		// Propagate correlation ID in response headers
@@ -38,8 +45,13 @@ func ReasonHandler(logger zerolog.Logger) http.HandlerFunc {
 			w.Header().Set("X-Correlation-ID", correlationID)
 		}
 
+		message := "Axon heartbeat OK"
+		if verifySigV4 {
+			message = "Axon heartbeat OK - SigV4 verified"
+		}
+
 		response := ReasonResponse{
-			Message:   "Axon heartbeat OK - SigV4 verified",
+			Message:   message,
 			Service:   "axon",
 			Timestamp: time.Now(),
 		}
@@ -48,14 +60,19 @@ func ReasonHandler(logger zerolog.Logger) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(response)
 
+		logMessage := "REASON_SUCCESS: reasoning completed"
+		if verifySigV4 {
+			logMessage = "REASON_SUCCESS: SigV4 verified reasoning completed"
+		}
+
 		logger.Info().
 			Str("correlation_id", correlationID).
 			Str("message", response.Message).
-			Msg("REASON_SUCCESS: SigV4 verified reasoning completed")
+			Msg(logMessage)
 	}
 }
 
-func verifySigV4(req *http.Request) error {
+func verifySigV4Request(req *http.Request) error {
 	// Get credentials from environment
 	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
 	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
