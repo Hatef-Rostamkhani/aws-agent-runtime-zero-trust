@@ -239,10 +239,11 @@ jobs:
         
         # Variables
         LAMBDA_NAME="${{ env.PROJECT_NAME }}-governance"
-        ROLE_ARN="${{ steps.get-outputs.outputs.orbit_task_role_arn }}"
+        ROLE_NAME="${{ env.PROJECT_NAME }}-governance-lambda-role"
         SECURITY_GROUP="${{ steps.get-outputs.outputs.governance_security_group_id }}"
         SUBNETS=$(echo '${{ steps.get-outputs.outputs.private_subnet_ids }}' | jq -r 'join(",")')
         DYNAMODB_TABLE="${{ env.PROJECT_NAME }}-governance-policies"
+        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
         
         echo "Configuration:"
         echo "  Lambda: $LAMBDA_NAME"
@@ -281,7 +282,7 @@ jobs:
 
         # Enable point-in-time recovery separately
         echo "Enabling point-in-time recovery..."
-        aws dynamodb update-continuous-backup \
+        aws dynamodb update-continuous-backups \
           --table-name "$DYNAMODB_TABLE" \
           --region "${{ env.AWS_REGION }}" \
           --point-in-time-recovery-specification PointInTimeRecoveryEnabled=true \
@@ -293,7 +294,82 @@ jobs:
           --table-name "$DYNAMODB_TABLE" \
           --region "${{ env.AWS_REGION }}" \
           2>&1 || echo "Table already exists"
-        
+
+        # Create IAM Role for Lambda (if not exists)
+        echo "Creating IAM Role for Lambda..."
+        ROLE_ARN=$(aws iam create-role \
+          --role-name "$ROLE_NAME" \
+          --assume-role-policy-document '{
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": {
+                  "Service": "lambda.amazonaws.com"
+                },
+                "Action": "sts:AssumeRole"
+              }
+            ]
+          }' \
+          --tags Key=Project,Value=${{ env.PROJECT_NAME }} Key=Environment,Value=production Key=Service,Value=governance \
+          --query 'Role.Arn' \
+          --output text \
+          2>&1) || ROLE_ARN=$(aws iam get-role --role-name "$ROLE_NAME" --query 'Role.Arn' --output text 2>&1)
+
+        if [ -z "$ROLE_ARN" ] || [ "$ROLE_ARN" = "None" ]; then
+          echo "❌ Failed to create or get IAM role"
+          exit 1
+        fi
+
+        echo "IAM Role ARN: $ROLE_ARN"
+
+        # Attach permissions to the role
+        echo "Attaching permissions to IAM Role..."
+        cat > lambda-policy.json << EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+      ],
+      "Resource": "arn:aws:dynamodb:${{ env.AWS_REGION }}:$AWS_ACCOUNT_ID:table/$DYNAMODB_TABLE"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:${{ env.AWS_REGION }}:$AWS_ACCOUNT_ID:log-group:/aws/lambda/$LAMBDA_NAME:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateNetworkInterface",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DeleteNetworkInterface"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+EOF
+
+        aws iam put-role-policy \
+          --role-name "$ROLE_NAME" \
+          --policy-name "${{ env.PROJECT_NAME }}-governance-lambda-policy" \
+          --policy-document file://lambda-policy.json \
+          2>&1 || echo "Policy may already be attached"
+
+        # Wait for role to be available
+        echo "Waiting for IAM role to be available..."
+        sleep 10
+
         # Create or Update Lambda Function
         echo "Deploying Lambda Function..."
         if aws lambda get-function --function-name "$LAMBDA_NAME" --region "${{ env.AWS_REGION }}" 2>/dev/null; then
