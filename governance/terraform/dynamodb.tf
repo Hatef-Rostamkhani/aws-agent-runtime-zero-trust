@@ -29,69 +29,38 @@ resource "aws_dynamodb_table" "policies" {
   }
 }
 
-# Default policy: orbit:call_reasoning
-resource "aws_dynamodb_table_item" "orbit_call_reasoning" {
-  table_name = aws_dynamodb_table.policies.name
-  hash_key   = aws_dynamodb_table.policies.hash_key
-  range_key  = aws_dynamodb_table.policies.range_key
-
-  item = jsonencode({
-    service     = { S = "orbit" }
-    intent      = { S = "call_reasoning" }
-    enabled     = { BOOL = true }
-    description = { S = "Allow Orbit to call Axon reasoning service" }
-    time_restrictions = {
-      M = {
-        allowed_hours = {
-          L = [
-            { N = "0" }, { N = "1" }, { N = "2" }, { N = "3" }, { N = "4" }, { N = "5" },
-            { N = "6" }, { N = "7" }, { N = "8" }, { N = "9" }, { N = "10" }, { N = "11" },
-            { N = "12" }, { N = "13" }, { N = "14" }, { N = "15" }, { N = "16" }, { N = "17" },
-            { N = "18" }, { N = "19" }, { N = "20" }, { N = "21" }, { N = "22" }, { N = "23" }
-          ]
-        }
-      }
-    }
-    rate_limits = {
-      M = {
-        requests_per_minute = { N = "100" }
-        requests_per_hour   = { N = "1000" }
-      }
-    }
-    conditions = { L = [] }
-  })
+# Read default policies from JSON file
+locals {
+  default_policies = jsondecode(file("${path.module}/../policies/default.json"))
 }
 
-# Default policy: orbit:call_metrics
-resource "aws_dynamodb_table_item" "orbit_call_metrics" {
+# Create DynamoDB items for each default policy
+resource "aws_dynamodb_table_item" "policies" {
+  for_each = { for idx, policy in local.default_policies : "${policy.service}:${policy.intent}" => policy }
+
   table_name = aws_dynamodb_table.policies.name
   hash_key   = aws_dynamodb_table.policies.hash_key
   range_key  = aws_dynamodb_table.policies.range_key
 
   item = jsonencode({
-    service     = { S = "orbit" }
-    intent      = { S = "call_metrics" }
-    enabled     = { BOOL = true }
-    description = { S = "Allow Orbit to retrieve metrics" }
-    time_restrictions = {
+    service     = { S = each.value.service }
+    intent      = { S = each.value.intent }
+    enabled     = { BOOL = each.value.enabled }
+    description = { S = each.value.description }
+    time_restrictions = each.value.time_restrictions != null ? {
       M = {
         allowed_hours = {
-          L = [
-            { N = "0" }, { N = "1" }, { N = "2" }, { N = "3" }, { N = "4" }, { N = "5" },
-            { N = "6" }, { N = "7" }, { N = "8" }, { N = "9" }, { N = "10" }, { N = "11" },
-            { N = "12" }, { N = "13" }, { N = "14" }, { N = "15" }, { N = "16" }, { N = "17" },
-            { N = "18" }, { N = "19" }, { N = "20" }, { N = "21" }, { N = "22" }, { N = "23" }
-          ]
+          L = [for hour in each.value.time_restrictions.allowed_hours : { N = tostring(hour) }]
         }
       }
-    }
+    } : null
     rate_limits = {
       M = {
-        requests_per_minute = { N = "60" }
-        requests_per_hour   = { N = "500" }
+        requests_per_minute = { N = tostring(each.value.rate_limits.requests_per_minute) }
+        requests_per_hour   = { N = tostring(each.value.rate_limits.requests_per_hour) }
       }
     }
-    conditions = { L = [] }
+    conditions = { L = each.value.conditions }
   })
 }
 
