@@ -255,10 +255,6 @@ jobs:
         orbit_task_role_arn = "${{ steps.get-outputs.outputs.orbit_task_role_arn }}"
         EOF
 
-          # Force unlock stale locks (if any)
-          STALE_LOCK_ID="67dd474c-5405-3bda-e69b-c8d8c7eab539"
-          terraform force-unlock -force "$STALE_LOCK_ID" 2>&1 || echo "No stale lock"
-
           # Note: Existing resources will be automatically imported via imports.tf
           echo "Terraform will automatically import existing resources using import blocks..."
 
