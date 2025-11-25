@@ -58,12 +58,26 @@ if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "axon" ]; then
         exit 1
     fi
     
+    # Get secret ARN
+    SECRET_ARN=$(aws secretsmanager describe-secret \
+        --secret-id ${PROJECT_NAME}/axon \
+        --query 'ARN' \
+        --output text 2>/dev/null || echo "")
+    
+    # Build secrets array (only if secret exists)
+    if [ -n "$SECRET_ARN" ] && [ "$SECRET_ARN" != "None" ]; then
+        SECRETS_JSON=",\"secrets\":[{\"name\":\"DATABASE_URL\",\"valueFrom\":\"${SECRET_ARN}:database_url::\"},{\"name\":\"API_KEY\",\"valueFrom\":\"${SECRET_ARN}:api_key::\"}]"
+    else
+        echo "WARNING: Secret ${PROJECT_NAME}/axon not found. Continuing without secrets..."
+        SECRETS_JSON=""
+    fi
+    
     # Register new task definition with latest image
     AXON_TASK_DEF=$(aws ecs register-task-definition \
         --family ${PROJECT_NAME}-axon \
         --execution-role-arn "$EXECUTION_ROLE_ARN" \
         --task-role-arn "$TASK_ROLE_ARN" \
-        --cli-input-json "{\"containerDefinitions\":[{\"name\":\"axon\",\"image\":\"${IMAGE_URI}:latest\",\"essential\":true,\"portMappings\":[{\"containerPort\":80,\"protocol\":\"tcp\"}],\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"/ecs/${PROJECT_NAME}-axon\",\"awslogs-region\":\"${AWS_REGION}\",\"awslogs-stream-prefix\":\"ecs\"}}}],\"networkMode\":\"awsvpc\",\"requiresCompatibilities\":[\"FARGATE\"],\"cpu\":\"256\",\"memory\":\"512\"}" \
+        --cli-input-json "{\"containerDefinitions\":[{\"name\":\"axon\",\"image\":\"${IMAGE_URI}:latest\",\"essential\":true,\"portMappings\":[{\"containerPort\":8080,\"protocol\":\"tcp\"}],\"environment\":[{\"name\":\"AWS_REGION\",\"value\":\"${AWS_REGION}\"},{\"name\":\"PORT\",\"value\":\"8080\"}]${SECRETS_JSON},\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"/ecs/${PROJECT_NAME}-axon\",\"awslogs-region\":\"${AWS_REGION}\",\"awslogs-stream-prefix\":\"ecs\"}},\"healthCheck\":{\"command\":[\"CMD-SHELL\",\"wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1\"],\"interval\":30,\"timeout\":5,\"retries\":3,\"startPeriod\":60}}],\"networkMode\":\"awsvpc\",\"requiresCompatibilities\":[\"FARGATE\"],\"cpu\":\"256\",\"memory\":\"512\"}" \
         --query 'taskDefinition.taskDefinitionArn' \
         --output text)
     
@@ -135,12 +149,31 @@ if [ "$SERVICE_NAME" = "all" ] || [ "$SERVICE_NAME" = "orbit" ]; then
         exit 1
     fi
     
+    # Get secret ARN
+    SECRET_ARN=$(aws secretsmanager describe-secret \
+        --secret-id ${PROJECT_NAME}/orbit \
+        --query 'ARN' \
+        --output text 2>/dev/null || echo "")
+    
+    # Build secrets array (only if secret exists)
+    if [ -n "$SECRET_ARN" ] && [ "$SECRET_ARN" != "None" ]; then
+        SECRETS_JSON=",\"secrets\":[{\"name\":\"DATABASE_URL\",\"valueFrom\":\"${SECRET_ARN}:database_url::\"},{\"name\":\"API_KEY\",\"valueFrom\":\"${SECRET_ARN}:api_key::\"}]"
+    else
+        echo "WARNING: Secret ${PROJECT_NAME}/orbit not found. Continuing without secrets..."
+        SECRETS_JSON=""
+    fi
+    
+    # Get service discovery namespace
+    NAMESPACE=$(aws servicediscovery list-namespaces \
+        --query "Namespaces[?Name=='${PROJECT_NAME}.local'].Id" \
+        --output text 2>/dev/null | head -1 || echo "")
+    
     # Register new task definition with latest image
     ORBIT_TASK_DEF=$(aws ecs register-task-definition \
         --family ${PROJECT_NAME}-orbit \
         --execution-role-arn "$EXECUTION_ROLE_ARN" \
         --task-role-arn "$TASK_ROLE_ARN" \
-        --cli-input-json "{\"containerDefinitions\":[{\"name\":\"orbit\",\"image\":\"${IMAGE_URI}:latest\",\"essential\":true,\"portMappings\":[{\"containerPort\":80,\"protocol\":\"tcp\"}],\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"/ecs/${PROJECT_NAME}-orbit\",\"awslogs-region\":\"${AWS_REGION}\",\"awslogs-stream-prefix\":\"ecs\"}}}],\"networkMode\":\"awsvpc\",\"requiresCompatibilities\":[\"FARGATE\"],\"cpu\":\"256\",\"memory\":\"512\"}" \
+        --cli-input-json "{\"containerDefinitions\":[{\"name\":\"orbit\",\"image\":\"${IMAGE_URI}:latest\",\"essential\":true,\"portMappings\":[{\"containerPort\":8080,\"protocol\":\"tcp\"}],\"environment\":[{\"name\":\"AWS_REGION\",\"value\":\"${AWS_REGION}\"},{\"name\":\"PORT\",\"value\":\"8080\"},{\"name\":\"AXON_SERVICE_URL\",\"value\":\"http://axon.${PROJECT_NAME}.local/reason\"}]${SECRETS_JSON},\"logConfiguration\":{\"logDriver\":\"awslogs\",\"options\":{\"awslogs-group\":\"/ecs/${PROJECT_NAME}-orbit\",\"awslogs-region\":\"${AWS_REGION}\",\"awslogs-stream-prefix\":\"ecs\"}},\"healthCheck\":{\"command\":[\"CMD-SHELL\",\"wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1\"],\"interval\":30,\"timeout\":5,\"retries\":3,\"startPeriod\":60}}],\"networkMode\":\"awsvpc\",\"requiresCompatibilities\":[\"FARGATE\"],\"cpu\":\"256\",\"memory\":\"512\"}" \
         --query 'taskDefinition.taskDefinitionArn' \
         --output text)
     
