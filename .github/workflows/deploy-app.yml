@@ -254,6 +254,9 @@ jobs:
         echo "Contents of temp.tfvars:"
         cat temp.tfvars
 
+        # Try to import existing log group if it exists (ignore errors)
+        terraform import aws_cloudwatch_log_group.governance "/aws/lambda/${{ env.PROJECT_NAME }}-governance" 2>/dev/null || true
+
         terraform apply -auto-approve -var-file=temp.tfvars
 
     - name: Blue-Green Deployment for Axon
