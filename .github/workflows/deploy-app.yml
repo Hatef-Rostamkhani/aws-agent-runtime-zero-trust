@@ -256,10 +256,56 @@ jobs:
         cat temp.tfvars
 
         # Try to import existing log group if it exists (ignore errors)
-        terraform import aws_cloudwatch_log_group.governance "/aws/lambda/${{ env.PROJECT_NAME }}-governance" 2>/dev/null || true
+        echo "Importing existing CloudWatch log group (if exists)..."
+        terraform import aws_cloudwatch_log_group.governance "/aws/lambda/${{ env.PROJECT_NAME }}-governance" 2>/dev/null || echo "Log group doesn't exist yet, will be created"
+
+        # Run terraform plan first to see what will be created
+        echo "Running terraform plan..."
+        PLAN_OUTPUT=$(terraform plan -var-file=temp.tfvars 2>&1)
+        PLAN_EXIT=$?
+
+        # Check if plan failed due to state lock
+        if [ $PLAN_EXIT -ne 0 ] && echo "$PLAN_OUTPUT" | grep -q "Error acquiring the state lock"; then
+          echo "State lock detected, extracting lock ID..."
+          LOCK_ID=$(echo "$PLAN_OUTPUT" | grep "ID:" | head -1 | awk '{print $2}')
+          if [ ! -z "$LOCK_ID" ]; then
+            echo "Attempting to force unlock: $LOCK_ID"
+            terraform force-unlock -force "$LOCK_ID" || echo "Force unlock failed, but continuing..."
+            # Retry plan
+            echo "Retrying terraform plan..."
+            terraform plan -var-file=temp.tfvars
+          fi
+        else
+          echo "$PLAN_OUTPUT"
+        fi
 
         # Run terraform apply with no interactivity
-        terraform apply -auto-approve -input=false -var-file=temp.tfvars
+        echo "Running terraform apply..."
+        APPLY_OUTPUT=$(terraform apply -auto-approve -input=false -var-file=temp.tfvars 2>&1)
+        APPLY_EXIT=$?
+
+        # Check if apply failed due to state lock
+        if [ $APPLY_EXIT -ne 0 ] && echo "$APPLY_OUTPUT" | grep -q "Error acquiring the state lock"; then
+          echo "State lock detected during apply, extracting lock ID..."
+          LOCK_ID=$(echo "$APPLY_OUTPUT" | grep "ID:" | head -1 | awk '{print $2}')
+          if [ ! -z "$LOCK_ID" ]; then
+            echo "Attempting to force unlock: $LOCK_ID"
+            terraform force-unlock -force "$LOCK_ID" || echo "Force unlock failed"
+            # Retry apply
+            echo "Retrying terraform apply..."
+            terraform apply -auto-approve -input=false -var-file=temp.tfvars
+          else
+            echo "$APPLY_OUTPUT"
+            exit 1
+          fi
+        elif [ $APPLY_EXIT -ne 0 ]; then
+          echo "$APPLY_OUTPUT"
+          exit 1
+        else
+          echo "$APPLY_OUTPUT"
+        fi
+
+        echo "✓ Governance Lambda deployment completed"
 
     - name: Blue-Green Deployment for Axon
       run: |
