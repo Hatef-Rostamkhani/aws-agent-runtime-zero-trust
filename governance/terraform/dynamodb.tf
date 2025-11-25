@@ -36,9 +36,9 @@ resource "aws_dynamodb_table_item" "orbit_call_reasoning" {
   range_key  = aws_dynamodb_table.policies.range_key
 
   item = jsonencode({
-    service = { S = "orbit" }
-    intent  = { S = "call_reasoning" }
-    enabled = { BOOL = true }
+    service     = { S = "orbit" }
+    intent      = { S = "call_reasoning" }
+    enabled     = { BOOL = true }
     description = { S = "Allow Orbit to call Axon reasoning service" }
     time_restrictions = {
       M = {
@@ -69,9 +69,9 @@ resource "aws_dynamodb_table_item" "orbit_call_metrics" {
   range_key  = aws_dynamodb_table.policies.range_key
 
   item = jsonencode({
-    service = { S = "orbit" }
-    intent  = { S = "call_metrics" }
-    enabled = { BOOL = true }
+    service     = { S = "orbit" }
+    intent      = { S = "call_metrics" }
+    enabled     = { BOOL = true }
     description = { S = "Allow Orbit to retrieve metrics" }
     time_restrictions = {
       M = {
