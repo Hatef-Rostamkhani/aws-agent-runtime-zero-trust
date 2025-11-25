@@ -134,6 +134,12 @@ jobs:
           echo "artifact_downloaded=false" >> $GITHUB_OUTPUT
         fi
 
+    - name: Setup Terraform
+      if: steps.download-lambda.outputs.artifact_downloaded == 'true'
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.5.0"
+
     - name: Deploy Governance Lambda (if artifact exists)
       if: steps.download-lambda.outputs.artifact_downloaded == 'true'
       run: |
