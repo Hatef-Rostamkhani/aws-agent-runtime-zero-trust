@@ -255,35 +255,14 @@ jobs:
         orbit_task_role_arn = "${{ steps.get-outputs.outputs.orbit_task_role_arn }}"
         EOF
 
-        # Force unlock stale locks
-        STALE_LOCK_ID="67dd474c-5405-3bda-e69b-c8d8c7eab539"
-        terraform force-unlock -force "$STALE_LOCK_ID" 2>&1 || echo "No stale lock"
+          # Force unlock stale locks (if any)
+          STALE_LOCK_ID="67dd474c-5405-3bda-e69b-c8d8c7eab539"
+          terraform force-unlock -force "$STALE_LOCK_ID" 2>&1 || echo "No stale lock"
 
-        # Import existing resources (ignore errors if they don't exist)
-        echo "Importing existing resources..."
-        DYNAMODB_TABLE="${{ env.PROJECT_NAME }}-governance-policies"
-        LAMBDA_NAME="${{ env.PROJECT_NAME }}-governance"
-        LOG_GROUP="/aws/lambda/$LAMBDA_NAME"
+          # Note: Existing resources will be automatically imported via imports.tf
+          echo "Terraform will automatically import existing resources using import blocks..."
 
-        # Import DynamoDB table
-        terraform import aws_dynamodb_table.policies "$DYNAMODB_TABLE" 2>&1 || echo "DynamoDB table not found in state"
-
-        # Import CloudWatch log group
-        terraform import aws_cloudwatch_log_group.governance "$LOG_GROUP" 2>&1 || echo "Log group not found in state"
-
-        # Import Lambda function
-        terraform import aws_lambda_function.governance "$LAMBDA_NAME" 2>&1 || echo "Lambda function not found in state"
-
-        # Import IAM role
-        ROLE_NAME="${{ env.PROJECT_NAME }}-governance-lambda-role"
-        terraform import aws_iam_role.governance_lambda "$ROLE_NAME" 2>&1 || echo "IAM role not found in state"
-
-        # Import IAM role policy
-        terraform import aws_iam_role_policy.governance_lambda "$ROLE_NAME/${{ env.PROJECT_NAME }}-governance-lambda-policy" 2>&1 || echo "IAM role policy not found in state"
-
-        echo "Resource import completed"
-
-        # Run terraform plan with error handling
+          # Run terraform plan with error handling
         echo "Running terraform plan..."
         if ! PLAN_OUTPUT=$(terraform plan -var-file=temp.tfvars 2>&1); then
           if echo "$PLAN_OUTPUT" | grep -q "Error acquiring the state lock"; then
