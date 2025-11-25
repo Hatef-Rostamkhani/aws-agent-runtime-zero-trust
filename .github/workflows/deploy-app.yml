@@ -255,9 +255,30 @@ jobs:
         echo "Contents of temp.tfvars:"
         cat temp.tfvars
 
+        # First, try to unlock the known stale lock
+        echo "Attempting to unlock stale state lock..."
+        STALE_LOCK_ID="67dd474c-5405-3bda-e69b-c8d8c7eab539"
+        terraform force-unlock -force "$STALE_LOCK_ID" 2>&1 || echo "Stale lock already removed or doesn't exist"
+
         # Try to import existing log group if it exists (ignore errors)
         echo "Importing existing CloudWatch log group (if exists)..."
-        terraform import aws_cloudwatch_log_group.governance "/aws/lambda/${{ env.PROJECT_NAME }}-governance" 2>&1 || echo "Log group doesn't exist yet, will be created"
+        set +e
+        IMPORT_OUTPUT=$(terraform import aws_cloudwatch_log_group.governance "/aws/lambda/${{ env.PROJECT_NAME }}-governance" 2>&1)
+        IMPORT_EXIT=$?
+        set -e
+        
+        if [ $IMPORT_EXIT -ne 0 ]; then
+          if echo "$IMPORT_OUTPUT" | grep -q "Error acquiring the state lock"; then
+            echo "State lock detected during import, extracting lock ID..."
+            LOCK_ID=$(echo "$IMPORT_OUTPUT" | grep -oE "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" | head -1)
+            if [ ! -z "$LOCK_ID" ]; then
+              echo "Attempting to force unlock: $LOCK_ID"
+              terraform force-unlock -force "$LOCK_ID" 2>&1 || echo "Force unlock failed"
+            fi
+          else
+            echo "Log group doesn't exist yet, will be created"
+          fi
+        fi
 
         # Run terraform plan first to see what will be created
         echo "Running terraform plan..."
@@ -269,14 +290,15 @@ jobs:
         # Check if plan failed due to state lock
         if [ $PLAN_EXIT -ne 0 ] && echo "$PLAN_OUTPUT" | grep -q "Error acquiring the state lock"; then
           echo "State lock detected, extracting lock ID..."
-          LOCK_ID=$(echo "$PLAN_OUTPUT" | grep "ID:" | head -1 | awk '{print $2}')
+          LOCK_ID=$(echo "$PLAN_OUTPUT" | grep -oE "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" | head -1)
           if [ ! -z "$LOCK_ID" ]; then
             echo "Attempting to force unlock: $LOCK_ID"
-            terraform force-unlock -force "$LOCK_ID" || echo "Force unlock failed, but continuing..."
+            terraform force-unlock -force "$LOCK_ID" 2>&1 || echo "Force unlock failed, but continuing..."
             # Retry plan
             echo "Retrying terraform plan..."
             terraform plan -var-file=temp.tfvars
           else
+            echo "Could not extract lock ID. Full output:"
             echo "$PLAN_OUTPUT"
             exit 1
           fi
@@ -298,10 +320,10 @@ jobs:
         # Check if apply failed due to state lock
         if [ $APPLY_EXIT -ne 0 ] && echo "$APPLY_OUTPUT" | grep -q "Error acquiring the state lock"; then
           echo "State lock detected during apply, extracting lock ID..."
-          LOCK_ID=$(echo "$APPLY_OUTPUT" | grep "ID:" | head -1 | awk '{print $2}')
+          LOCK_ID=$(echo "$APPLY_OUTPUT" | grep -oE "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" | head -1)
           if [ ! -z "$LOCK_ID" ]; then
             echo "Attempting to force unlock: $LOCK_ID"
-            terraform force-unlock -force "$LOCK_ID" || echo "Force unlock failed"
+            terraform force-unlock -force "$LOCK_ID" 2>&1 || echo "Force unlock failed"
             # Retry apply
             echo "Retrying terraform apply..."
             terraform apply -auto-approve -input=false -var-file=temp.tfvars
