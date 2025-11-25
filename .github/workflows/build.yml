@@ -6,19 +6,9 @@ name: Build and Push
 on:
   push:
     branches: [ main, develop ]
-    paths:
-      - 'services/**'
-      - 'governance/**'
-      - '.github/workflows/build.yml'
-      - 'services/**/Dockerfile'
-      - 'services/**/Dockerfile.*'
   pull_request:
     branches: [ main ]
-    paths:
-      - 'services/**'
-      - 'governance/**'
-      - 'services/**/Dockerfile'
-      - 'services/**/Dockerfile.*'
+  workflow_dispatch:  # Allow manual trigger
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
