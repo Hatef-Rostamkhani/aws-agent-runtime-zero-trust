@@ -42,18 +42,12 @@ resource "aws_dynamodb_table_item" "policies" {
   hash_key   = aws_dynamodb_table.policies.hash_key
   range_key  = aws_dynamodb_table.policies.range_key
 
-  item = jsonencode({
+  # Build item dynamically to handle null values properly
+  item = jsonencode(merge({
     service     = { S = each.value.service }
     intent      = { S = each.value.intent }
     enabled     = { BOOL = each.value.enabled }
     description = { S = each.value.description }
-    time_restrictions = each.value.time_restrictions != null ? {
-      M = {
-        allowed_hours = {
-          L = [for hour in each.value.time_restrictions.allowed_hours : { N = tostring(hour) }]
-        }
-      }
-    } : null
     rate_limits = {
       M = {
         requests_per_minute = { N = tostring(each.value.rate_limits.requests_per_minute) }
@@ -61,6 +55,14 @@ resource "aws_dynamodb_table_item" "policies" {
       }
     }
     conditions = { L = each.value.conditions }
-  })
+    }, each.value.time_restrictions != null ? {
+    time_restrictions = {
+      M = {
+        allowed_hours = {
+          L = [for hour in each.value.time_restrictions.allowed_hours : { N = tostring(hour) }]
+        }
+      }
+    }
+  } : {}))
 }
 
