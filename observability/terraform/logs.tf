@@ -23,7 +23,7 @@ resource "aws_cloudwatch_log_group" "governance" {
 # Log Metric Filters for custom metrics
 resource "aws_cloudwatch_log_metric_filter" "axon_errors" {
   name           = "${var.project_name}-axon-errors"
-  pattern        = "\"level\":\"ERROR\""
+  pattern        = "ERROR"
   log_group_name = data.aws_cloudwatch_log_group.axon.name
 
   metric_transformation {
@@ -36,7 +36,7 @@ resource "aws_cloudwatch_log_metric_filter" "axon_errors" {
 
 resource "aws_cloudwatch_log_metric_filter" "orbit_requests" {
   name           = "${var.project_name}-orbit-requests"
-  pattern        = "\"REQUEST\""
+  pattern        = "REQUEST"
   log_group_name = data.aws_cloudwatch_log_group.orbit.name
 
   metric_transformation {
@@ -49,7 +49,7 @@ resource "aws_cloudwatch_log_metric_filter" "orbit_requests" {
 
 resource "aws_cloudwatch_log_metric_filter" "governance_denials" {
   name           = "${var.project_name}-governance-denials"
-  pattern        = "\"allowed\":false"
+  pattern        = "false"
   log_group_name = aws_cloudwatch_log_group.governance.name
 
   metric_transformation {
