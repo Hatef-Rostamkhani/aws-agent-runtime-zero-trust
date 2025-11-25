@@ -36,7 +36,14 @@ resource "aws_security_group" "axon" {
   name_prefix = "${var.project_name}-axon-"
   vpc_id      = var.vpc_id
 
-  # No inbound rules - only through App Mesh
+  # Allow inbound traffic from ALB for health checks and routing
+  ingress {
+    description     = "HTTP from ALB"
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+  }
 
   egress {
     from_port   = 0
@@ -55,7 +62,14 @@ resource "aws_security_group" "orbit" {
   name_prefix = "${var.project_name}-orbit-"
   vpc_id      = var.vpc_id
 
-  # No inbound rules - only through App Mesh
+  # Allow inbound traffic from ALB for health checks and routing
+  ingress {
+    description     = "HTTP from ALB"
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+  }
 
   egress {
     from_port   = 0
