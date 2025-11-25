@@ -26,7 +26,7 @@ resource "aws_ecs_service" "axon" {
   load_balancer {
     target_group_arn = var.axon_target_group_arn
     container_name   = "axon"
-    container_port   = 80
+    container_port   = 8080
   }
 
   deployment_controller {
@@ -73,7 +73,7 @@ resource "aws_ecs_service" "orbit" {
   load_balancer {
     target_group_arn = var.orbit_target_group_arn
     container_name   = "orbit"
-    container_port   = 80
+    container_port   = 8080
   }
 
   deployment_controller {

@@ -26,7 +26,7 @@ COPY --from=builder /app/main .
 RUN adduser -D -s /bin/sh appuser
 USER appuser
 
-EXPOSE 80
+EXPOSE 8080
 
 CMD ["./main"]
 

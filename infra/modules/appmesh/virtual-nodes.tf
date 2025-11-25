@@ -6,7 +6,7 @@ resource "aws_appmesh_virtual_node" "axon" {
   spec {
     listener {
       port_mapping {
-        port     = 80
+        port     = 8080
         protocol = "http"
       }
 
@@ -47,7 +47,7 @@ resource "aws_appmesh_virtual_node" "orbit" {
 
     listener {
       port_mapping {
-        port     = 80
+        port     = 8080
         protocol = "http"
       }
 

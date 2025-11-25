@@ -5,7 +5,7 @@
     "essential": true,
     "portMappings": [
       {
-        "containerPort": 80,
+        "containerPort": 8080,
         "protocol": "tcp"
       }
     ],
@@ -20,7 +20,7 @@
       },
       {
         "name": "PORT",
-        "value": "80"
+        "value": "8080"
       }
     ],
     "secrets": [
@@ -44,7 +44,7 @@
     "healthCheck": {
       "command": [
         "CMD-SHELL",
-        "wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1"
+        "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"
       ],
       "interval": 30,
       "timeout": 5,
