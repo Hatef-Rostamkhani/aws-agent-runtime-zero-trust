@@ -2,6 +2,17 @@ resource "aws_cloudwatch_log_group" "governance" {
   name              = "/aws/lambda/${var.project_name}-governance"
   retention_in_days = 30
 
+  lifecycle {
+    # Note: This doesn't prevent ResourceAlreadyExistsException
+    # ignore_changes only affects updates, not creation
+    # For existing resources, we still need terraform import
+    prevent_destroy = false
+    ignore_changes = [
+      # This would ignore changes to name, but creation still fails if resource exists
+      name
+    ]
+  }
+
   tags = {
     Name        = "${var.project_name}-governance-logs"
     Service     = "governance"
