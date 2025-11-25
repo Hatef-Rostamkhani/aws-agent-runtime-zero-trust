@@ -42,8 +42,11 @@ resource "aws_iam_role_policy" "config" {
         Resource = aws_s3_bucket.config.arn
       },
       {
-        Effect   = "Allow"
-        Action   = "s3:GetObject"
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:PutObjectAcl"
+        ]
         Resource = "${aws_s3_bucket.config.arn}/*"
       },
       {
@@ -77,11 +80,59 @@ resource "aws_s3_bucket_public_access_block" "config" {
   restrict_public_buckets = true
 }
 
+# S3 bucket policy to allow AWS Config to write
+resource "aws_s3_bucket_policy" "config" {
+  bucket = aws_s3_bucket.config.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AWSConfigBucketPermissionsCheck"
+        Effect = "Allow"
+        Principal = {
+          Service = "config.amazonaws.com"
+        }
+        Action   = "s3:GetBucketAcl"
+        Resource = aws_s3_bucket.config.arn
+      },
+      {
+        Sid    = "AWSConfigBucketExistenceCheck"
+        Effect = "Allow"
+        Principal = {
+          Service = "config.amazonaws.com"
+        }
+        Action   = "s3:ListBucket"
+        Resource = aws_s3_bucket.config.arn
+      },
+      {
+        Sid    = "AWSConfigBucketPutObject"
+        Effect = "Allow"
+        Principal = {
+          Service = "config.amazonaws.com"
+        }
+        Action   = "s3:PutObject"
+        Resource = "${aws_s3_bucket.config.arn}/*"
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = "bucket-owner-full-control"
+          }
+        }
+      }
+    ]
+  })
+
+  depends_on = [aws_s3_bucket_public_access_block.config]
+}
+
 resource "aws_config_delivery_channel" "main" {
   name           = "${var.project_name}-config-delivery"
   s3_bucket_name = aws_s3_bucket.config.bucket
 
-  depends_on = [aws_config_configuration_recorder.main]
+  depends_on = [
+    aws_config_configuration_recorder.main,
+    aws_s3_bucket_policy.config
+  ]
 }
 
 resource "random_string" "suffix" {
