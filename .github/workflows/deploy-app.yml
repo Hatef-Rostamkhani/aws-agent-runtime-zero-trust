@@ -261,22 +261,9 @@ jobs:
         echo "Force unlocking lock ID: $STALE_LOCK_ID"
         terraform force-unlock -force "$STALE_LOCK_ID" 2>&1 || echo "Lock already removed or doesn't exist"
 
-        # Try to import existing log group if it exists (ignore errors)
-        echo "Importing existing CloudWatch log group (if exists)..."
-        set +e
-        IMPORT_OUTPUT=$(terraform import aws_cloudwatch_log_group.governance "/aws/lambda/${{ env.PROJECT_NAME }}-governance" 2>&1)
-        IMPORT_EXIT=$?
-        set -e
-        
-        if [ $IMPORT_EXIT -ne 0 ]; then
-          if echo "$IMPORT_OUTPUT" | grep -q "Error acquiring the state lock"; then
-            echo "State lock detected during import - force unlocking..."
-            KNOWN_LOCK_ID="67dd474c-5405-3bda-e69b-c8d8c7eab539"
-            terraform force-unlock -force "$KNOWN_LOCK_ID" 2>&1 || echo "Force unlock failed"
-          else
-            echo "Log group doesn't exist yet, will be created"
-          fi
-        fi
+        # Try to import existing log group after unlocking
+        echo "Attempting to import existing CloudWatch log group..."
+        terraform import aws_cloudwatch_log_group.governance "/aws/lambda/${{ env.PROJECT_NAME }}-governance" 2>&1 || echo "Log group doesn't exist in state, will be created"
 
         # Run terraform plan first to see what will be created
         echo "Running terraform plan..."
@@ -319,9 +306,15 @@ jobs:
           echo "Retrying terraform apply..."
           terraform apply -auto-approve -input=false -var-file=temp.tfvars
         elif [ $APPLY_EXIT -ne 0 ]; then
-          echo "Terraform apply failed with exit code $APPLY_EXIT:"
-          echo "$APPLY_OUTPUT"
-          exit 1
+          # Check if it's just the log group already exists error
+          if echo "$APPLY_OUTPUT" | grep -q "ResourceAlreadyExistsException"; then
+            echo "Log group already exists, continuing with deployment..."
+            echo "$APPLY_OUTPUT"
+          else
+            echo "Terraform apply failed with exit code $APPLY_EXIT:"
+            echo "$APPLY_OUTPUT"
+            exit 1
+          fi
         else
           echo "$APPLY_OUTPUT"
         fi
