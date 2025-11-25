@@ -48,33 +48,53 @@ jobs:
       run: |
         CLUSTER_NAME="${PROJECT_NAME}-cluster"
         echo "Checking if infrastructure is deployed..."
-        
+
         # Check if ECS cluster exists
         CLUSTER_EXISTS=$(aws ecs describe-clusters \
           --clusters $CLUSTER_NAME \
           --query 'clusters[0].status' \
           --output text 2>/dev/null || echo "INACTIVE")
-        
+
         if [ "$CLUSTER_EXISTS" != "ACTIVE" ]; then
           echo "::error::ECS cluster '$CLUSTER_NAME' does not exist."
           echo "::error::Please deploy infrastructure first by running the 'Deploy Infrastructure' workflow."
           echo "::error::Go to Actions > Deploy Infrastructure > Run workflow"
           exit 1
         fi
-        
+
+        # Check Terraform outputs exist
+        echo "Checking Terraform outputs..."
+        cd infra
+        terraform init -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
+          -backend-config="dynamodb_table=${{ secrets.TERRAFORM_STATE_DYNAMODB_TABLE }}" \
+          -backend-config="key=infra/terraform.tfstate" > /dev/null 2>&1
+
+        # Try to get outputs to verify infrastructure is fully deployed
+        OUTPUT_CHECK=$(terraform output -json 2>/dev/null | jq -r '.private_subnet_ids // empty' || echo "")
+
+        if [ -z "$OUTPUT_CHECK" ]; then
+          echo "::error::Infrastructure outputs not found. Infrastructure may not be fully deployed."
+          echo "::error::Please check that the 'Deploy Infrastructure' workflow completed successfully."
+          echo "::error::Go to Actions > Deploy Infrastructure and verify it completed without errors."
+          exit 1
+        fi
+
+        cd ..
+        echo "✓ Infrastructure outputs found"
+
         # Check if ECS services exist (they may have desired_count=0 initially)
         AXON_SERVICE=$(aws ecs describe-services \
           --cluster $CLUSTER_NAME \
           --services ${PROJECT_NAME}-axon \
           --query 'services[0].status' \
           --output text 2>/dev/null || echo "INACTIVE")
-        
+
         ORBIT_SERVICE=$(aws ecs describe-services \
           --cluster $CLUSTER_NAME \
           --services ${PROJECT_NAME}-orbit \
           --query 'services[0].status' \
           --output text 2>/dev/null || echo "INACTIVE")
-        
+
         # Services can be ACTIVE even with desired_count=0 (no tasks running)
         if [ "$AXON_SERVICE" != "ACTIVE" ] || [ "$ORBIT_SERVICE" != "ACTIVE" ]; then
           echo "::error::ECS services are not deployed."
@@ -84,9 +104,9 @@ jobs:
           echo "::error::Go to Actions > Deploy Infrastructure > Run workflow"
           exit 1
         fi
-        
+
         echo "✓ ECS services exist (may have 0 tasks until images are deployed)"
-        
+
         echo "✓ Infrastructure is deployed and ready"
 
     - name: Download Lambda package
