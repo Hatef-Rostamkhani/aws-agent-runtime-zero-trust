@@ -3,16 +3,22 @@ set -e
 
 echo "Testing Task 7: Documentation"
 
+# Check if PROJECT_NAME is set
+if [ -z "$PROJECT_NAME" ]; then
+    PROJECT_NAME="agent-runtime"
+    echo "PROJECT_NAME not set, using default: $PROJECT_NAME"
+fi
+
 # Check all documentation files exist
 DOC_FILES=(
-  "../docs/architecture.md"
-  "../docs/failure-resilience.md"
-  "../docs/security.md"
-  "../docs/runbook.md"
-  "../docs/setup-guide.md"
-  "../docs/api.md"
-  "../docs/troubleshooting.md"
-  "../docs/performance.md"
+  "docs/architecture.md"
+  "docs/failure-resilience.md"
+  "docs/security.md"
+  "docs/runbook.md"
+  "docs/setup-guide.md"
+  "docs/api.md"
+  "docs/troubleshooting.md"
+  "docs/performance.md"
 )
 
 for file in "${DOC_FILES[@]}"; do
@@ -24,21 +30,21 @@ done
 echo "✅ All documentation files present"
 
 # Validate README completeness
-if ! grep -q "Setup Guide\|API Documentation\|Architecture" ../README.md; then
+if ! grep -q "Setup Guide\|API Documentation\|Architecture" README.md; then
   echo "❌ README missing key sections"
   exit 1
 fi
 echo "✅ README is comprehensive"
 
 # Check setup guide for key commands
-if ! grep -q "terraform init\|docker build" ../docs/setup-guide.md; then
+if ! grep -q "terraform init\|docker build" docs/setup-guide.md; then
   echo "❌ Setup guide missing key commands"
   exit 1
 fi
 echo "✅ Setup guide includes key commands"
 
 # Check API documentation
-if ! grep -q "GET /health\|POST /dispatch" ../docs/api.md; then
+if ! grep -q "GET /health\|POST /dispatch" docs/api.md; then
   echo "❌ API documentation incomplete"
   exit 1
 fi
