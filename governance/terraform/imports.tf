@@ -20,7 +20,12 @@ import {
   id = "/aws/lambda/agent-runtime-governance"
 }
 
-# Note: Lambda function will be created by Terraform
-# IAM role policy will be created by Terraform
+# Import Lambda function (already exists)
+import {
+  to = aws_lambda_function.governance
+  id = "agent-runtime-governance"
+}
+
+# Note: IAM role policy will be created by Terraform
 # Only import resources that definitely exist to avoid import errors
 
