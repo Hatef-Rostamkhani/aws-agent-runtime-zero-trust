@@ -35,34 +35,41 @@ locals {
 }
 
 # Create DynamoDB items for each default policy
-resource "aws_dynamodb_table_item" "policies" {
-  for_each = { for idx, policy in local.default_policies : "${policy.service}:${policy.intent}" => policy }
-
-  table_name = aws_dynamodb_table.policies.name
-  hash_key   = aws_dynamodb_table.policies.hash_key
-  range_key  = aws_dynamodb_table.policies.range_key
-
-  # Build item dynamically to handle null values properly
-  item = jsonencode(merge({
-    service     = { S = each.value.service }
-    intent      = { S = each.value.intent }
-    enabled     = { BOOL = each.value.enabled }
-    description = { S = each.value.description }
-    rate_limits = {
-      M = {
-        requests_per_minute = { N = tostring(each.value.rate_limits.requests_per_minute) }
-        requests_per_hour   = { N = tostring(each.value.rate_limits.requests_per_hour) }
-      }
-    }
-    conditions = { L = each.value.conditions }
-    }, each.value.time_restrictions != null ? {
-    time_restrictions = {
-      M = {
-        allowed_hours = {
-          L = [for hour in each.value.time_restrictions.allowed_hours : { N = tostring(hour) }]
-        }
-      }
-    }
-  } : {}))
-}
+# Commented out since policies already exist in imported table
+# The policies were loaded previously and are working correctly
+# Uncomment only if you need to recreate the table from scratch
+# resource "aws_dynamodb_table_item" "policies" {
+#   for_each = { for idx, policy in local.default_policies : "${policy.service}:${policy.intent}" => policy }
+#
+#   table_name = aws_dynamodb_table.policies.name
+#   hash_key   = aws_dynamodb_table.policies.hash_key
+#   range_key  = aws_dynamodb_table.policies.range_key
+#
+#   # Build item dynamically to handle null values properly
+#   item = jsonencode(merge({
+#     service     = { S = each.value.service }
+#     intent      = { S = each.value.intent }
+#     enabled     = { BOOL = each.value.enabled }
+#     description = { S = each.value.description }
+#     rate_limits = {
+#       M = {
+#         requests_per_minute = { N = tostring(each.value.rate_limits.requests_per_minute) }
+#         requests_per_hour   = { N = tostring(each.value.rate_limits.requests_per_hour) }
+#       }
+#     }
+#     conditions = { L = each.value.conditions }
+#     }, each.value.time_restrictions != null ? {
+#     time_restrictions = {
+#       M = {
+#         allowed_hours = {
+#           L = [for hour in each.value.time_restrictions.allowed_hours : { N = tostring(hour) }]
+#         }
+#       }
+#     }
+#   } : {}))
+#
+#   lifecycle {
+#     ignore_changes = all
+#   }
+# }
 
