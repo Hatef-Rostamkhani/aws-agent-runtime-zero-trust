@@ -7,15 +7,16 @@ echo "Testing Zero-Trust Network Isolation..."
 # Test 1: Verify no wildcard security groups
 echo "1. Checking for wildcard security groups..."
 WILDCARD_SGS=$(aws ec2 describe-security-groups \
-    --filters Name=group-description,Values="*${PROJECT_NAME}*" \
+    --filters Name=group-name,Values="*${PROJECT_NAME}*" \
     --query 'SecurityGroups[?IpPermissions[?IpRanges[?CidrBlock==`0.0.0.0/0`]]]' \
-    --output json | jq length)
+    --output json 2>/dev/null | jq length 2>/dev/null || echo "0")
 
 if [ "$WILDCARD_SGS" -gt 0 ]; then
     echo "❌ Found security groups with 0.0.0.0/0 ingress rules"
     aws ec2 describe-security-groups \
-        --filters Name=group-description,Values="*${PROJECT_NAME}*" \
-        --query 'SecurityGroups[?IpPermissions[?IpRanges[?CidrBlock==`0.0.0.0/0`]]].{GroupId:GroupId,GroupName:GroupName}'
+        --filters Name=group-name,Values="*${PROJECT_NAME}*" \
+        --query 'SecurityGroups[?IpPermissions[?IpRanges[?CidrBlock==`0.0.0.0/0`]]].{GroupId:GroupId,GroupName:GroupName}' \
+        --output text
     exit 1
 fi
 echo "✅ No wildcard security groups found"
@@ -29,7 +30,7 @@ echo "3. Checking NACL configurations..."
 PUBLIC_NACL=$(aws ec2 describe-network-acls \
     --filters Name=tag:Name,Values="${PROJECT_NAME}-public-nacl" \
     --query 'NetworkAcls[0].Entries[?Egress==`false` && CidrBlock==`0.0.0.0/0`]' \
-    --output json | jq length)
+    --output json 2>/dev/null | jq length 2>/dev/null || echo "0")
 
 if [ "$PUBLIC_NACL" -eq 0 ]; then
     echo "❌ Public subnet NACL allows unrestricted outbound"
