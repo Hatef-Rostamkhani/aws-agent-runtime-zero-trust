@@ -2,6 +2,12 @@
 
 set -e
 
+# Check if PROJECT_NAME is set
+if [ -z "$PROJECT_NAME" ]; then
+    PROJECT_NAME="agent-runtime"
+    echo "PROJECT_NAME not set, using default: $PROJECT_NAME"
+fi
+
 echo "Testing Zero-Trust Network Isolation..."
 
 # Test 1: Verify no wildcard security groups
@@ -27,22 +33,23 @@ echo "2. Testing private-only communication..."
 
 # Test 3: Verify NACL restrictions
 echo "3. Checking NACL configurations..."
-PUBLIC_NACL=$(aws ec2 describe-network-acls \
-    --filters Name=tag:Name,Values="${PROJECT_NAME}-public-nacl" \
-    --query 'NetworkAcls[0].Entries[?Egress==`false` && CidrBlock==`0.0.0.0/0`]' \
+PRIVATE_OUTBOUND_OPEN=$(aws ec2 describe-network-acls \
+    --filters Name=tag:Name,Values="${PROJECT_NAME}-private-nacl" \
+    --query 'NetworkAcls[0].Entries[?Egress==`true` && CidrBlock==`0.0.0.0/0` && Protocol==`-1` && RuleAction==`allow` && RuleNumber<`32767`]' \
     --output json 2>/dev/null | jq length 2>/dev/null || echo "0")
 
-if [ "$PUBLIC_NACL" -eq 0 ]; then
-    echo "❌ Public subnet NACL allows unrestricted outbound"
+if [ "$PRIVATE_OUTBOUND_OPEN" -gt 0 ]; then
+    echo "❌ Private subnet NACL allows unrestricted outbound access"
     exit 1
 fi
 echo "✅ NACLs properly restrict traffic"
 
 # Test 4: Verify service mesh isolation
 echo "4. Testing App Mesh isolation..."
-AXON_VNODES=$(aws appmesh list-virtual-nodes --mesh-name ${PROJECT_NAME}-mesh \
+MESH_NAME="${PROJECT_NAME}-mesh"
+AXON_VNODES=$(aws appmesh list-virtual-nodes --mesh-name "$MESH_NAME" \
     --query 'virtualNodes[?contains(virtualNodeName, `axon`)]' \
-    --output json | jq length)
+    --output json 2>/dev/null | jq length 2>/dev/null || echo "0")
 
 if [ "$AXON_VNODES" -eq 0 ]; then
     echo "❌ Axon virtual nodes not found in mesh"

@@ -5,10 +5,10 @@ on:
     workflows: ["Build and Push"]
     types:
       - completed
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:  # Allow manual trigger
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - '.github/workflows/deploy-app.yml'
       - 'cicd/scripts/**'
@@ -24,10 +24,10 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    
+
     # Only run if build workflow succeeded (when triggered by workflow_run)
     if: |
-      github.event_name == 'workflow_dispatch' || 
+      github.event_name == 'workflow_dispatch' ||
       github.event_name == 'push' ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
@@ -53,13 +53,13 @@ jobs:
       run: |
         CLUSTER_NAME="${PROJECT_NAME}-cluster"
         echo "Checking if infrastructure is deployed..."
-        
+
         # Check if ECS cluster exists
         CLUSTER_EXISTS=$(aws ecs describe-clusters \
           --clusters $CLUSTER_NAME \
           --query 'clusters[0].status' \
           --output text 2>/dev/null || echo "INACTIVE")
-        
+
         if [ "$CLUSTER_EXISTS" != "ACTIVE" ]; then
           echo "::error::ECS cluster '$CLUSTER_NAME' does not exist."
           echo "::error::Please deploy infrastructure first by running the 'Deploy Infrastructure' workflow."
@@ -105,20 +105,20 @@ jobs:
 
         echo "✓ Found $SUBNET_COUNT private subnets"
         echo "✓ Infrastructure components found"
-        
+
         # Check if ECS services exist (they may have desired_count=0 initially)
         AXON_SERVICE=$(aws ecs describe-services \
           --cluster $CLUSTER_NAME \
           --services ${PROJECT_NAME}-axon \
           --query 'services[0].status' \
           --output text 2>/dev/null || echo "INACTIVE")
-        
+
         ORBIT_SERVICE=$(aws ecs describe-services \
           --cluster $CLUSTER_NAME \
           --services ${PROJECT_NAME}-orbit \
           --query 'services[0].status' \
           --output text 2>/dev/null || echo "INACTIVE")
-        
+
         # Services can be ACTIVE even with desired_count=0 (no tasks running)
         if [ "$AXON_SERVICE" != "ACTIVE" ] || [ "$ORBIT_SERVICE" != "ACTIVE" ]; then
           echo "::error::ECS services are not deployed."
@@ -128,9 +128,9 @@ jobs:
           echo "::error::Go to Actions > Deploy Infrastructure > Run workflow"
           exit 1
         fi
-        
+
         echo "✓ ECS services exist (may have 0 tasks until images are deployed)"
-        
+
         echo "✓ Infrastructure is deployed and ready"
 
     - name: Download Lambda package
@@ -149,14 +149,16 @@ jobs:
         else
           # Find the most recent successful "Build and Push" workflow run
           echo "Searching for recent successful build workflow..."
-          ARTIFACT_RUN_ID=$(gh run list --workflow="build.yml" --status=success --limit=1 --json databaseId --jq '.[0].databaseId' 2>&1)
-          
+          ARTIFACT_RUN_ID=$(gh run list --workflow="build.yml" \
+            --status=success --limit=1 --json databaseId \
+            --jq '.[0].databaseId' 2>&1)
+
           if [ $? -ne 0 ]; then
             echo "Error finding workflow runs: $ARTIFACT_RUN_ID"
             echo "artifact_downloaded=false" >> $GITHUB_OUTPUT
             exit 0
           fi
-          
+
           echo "Found build run ID: $ARTIFACT_RUN_ID"
         fi
 
@@ -260,9 +262,12 @@ jobs:
 
           # Run terraform plan with error handling
         echo "Running terraform plan..."
-        if ! PLAN_OUTPUT=$(terraform plan -var-file=temp.tfvars 2>&1); then
+        if ! PLAN_OUTPUT=$(terraform plan -var-file=temp.tfvars \
+          2>&1); then
           if echo "$PLAN_OUTPUT" | grep -q "Error acquiring the state lock"; then
-            LOCK_ID=$(echo "$PLAN_OUTPUT" | grep -oE "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" | head -1)
+            LOCK_ID=$(echo "$PLAN_OUTPUT" | \
+              grep -oE "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" | \
+              head -1)
             [ ! -z "$LOCK_ID" ] && terraform force-unlock -force "$LOCK_ID" 2>&1
             terraform plan -var-file=temp.tfvars
           else
@@ -273,9 +278,12 @@ jobs:
 
         # Run terraform apply with error handling
         echo "Running terraform apply..."
-        if ! APPLY_OUTPUT=$(terraform apply -auto-approve -var-file=temp.tfvars 2>&1); then
+        if ! APPLY_OUTPUT=$(terraform apply -auto-approve \
+          -var-file=temp.tfvars 2>&1); then
           if echo "$APPLY_OUTPUT" | grep -q "Error acquiring the state lock"; then
-            LOCK_ID=$(echo "$APPLY_OUTPUT" | grep -oE "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" | head -1)
+            LOCK_ID=$(echo "$APPLY_OUTPUT" | \
+              grep -oE "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" | \
+              head -1)
             [ ! -z "$LOCK_ID" ] && terraform force-unlock -force "$LOCK_ID" 2>&1
             terraform apply -auto-approve -var-file=temp.tfvars
           else

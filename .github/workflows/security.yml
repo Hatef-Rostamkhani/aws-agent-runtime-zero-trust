@@ -2,14 +2,14 @@ name: Security Scan
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
       - 'services/**'
       - 'governance/**'
       - 'infra/**'
       - '.github/workflows/security.yml'
   pull_request:
-    branches: [ main ]
+    branches: [main]
   schedule:
     # Run daily at 2 AM UTC
     - cron: '0 2 * * *'
@@ -127,7 +127,12 @@ jobs:
         wait-for-processing: true
 
     - name: Fail on critical vulnerabilities
-      if: steps.trivy-axon-dockerfile.outputs.exit-code == 1 || steps.trivy-orbit-dockerfile.outputs.exit-code == 1 || (steps.aws-credentials.outcome == 'success' && (steps.trivy-axon-image.outputs.exit-code == 1 || steps.trivy-orbit-image.outputs.exit-code == 1))
+      if: >
+        steps.trivy-axon-dockerfile.outputs.exit-code == 1 ||
+        steps.trivy-orbit-dockerfile.outputs.exit-code == 1 ||
+        (steps.aws-credentials.outcome == 'success' &&
+         (steps.trivy-axon-image.outputs.exit-code == 1 ||
+          steps.trivy-orbit-image.outputs.exit-code == 1))
       run: |
         echo "Critical or high severity vulnerabilities found"
         exit 1

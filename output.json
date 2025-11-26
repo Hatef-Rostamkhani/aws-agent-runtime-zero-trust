@@ -1,1 +1,0 @@
-{"statusCode": 200, "headers": {"Content-Type": "application/json", "X-Correlation-ID": "unknown"}, "body": "{\"service\": \"orbit\", \"intent\": \"call_reasoning\", \"allowed\": true, \"reason\": \"Request authorized\", \"timestamp\": 1764166519.3106565, \"correlation_id\": \"unknown\"}"}

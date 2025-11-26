@@ -64,7 +64,7 @@ if command -v aws &> /dev/null && aws sts get-caller-identity &> /dev/null && [ 
         /tmp/governance-output.json 2>/dev/null || true
     
     if [ -f /tmp/governance-output.json ]; then
-        ALLOWED=$(cat /tmp/governance-output.json | python3 -c "import sys, json; print(json.load(sys.stdin).get('allowed', 'false'))" 2>/dev/null || echo "false")
+        ALLOWED=$(cat /tmp/governance-output.json | python3 -c "import sys, json; data=json.load(sys.stdin); body=json.loads(data['body']); print(body.get('allowed', 'false'))" 2>/dev/null || echo "false")
         
         if [ "$ALLOWED" == "True" ] || [ "$ALLOWED" == "true" ]; then
             echo -e "${GREEN}✅ Governance allows authorized requests${NC}"
@@ -86,7 +86,7 @@ if command -v aws &> /dev/null && aws sts get-caller-identity &> /dev/null && [ 
         /tmp/governance-output-deny.json 2>/dev/null || true
     
     if [ -f /tmp/governance-output-deny.json ]; then
-        ALLOWED=$(cat /tmp/governance-output-deny.json | python3 -c "import sys, json; print(json.load(sys.stdin).get('allowed', 'true'))" 2>/dev/null || echo "true")
+        ALLOWED=$(cat /tmp/governance-output-deny.json | python3 -c "import sys, json; data=json.load(sys.stdin); body=json.loads(data['body']); print(body.get('allowed', 'true'))" 2>/dev/null || echo "true")
         
         if [ "$ALLOWED" == "False" ] || [ "$ALLOWED" == "false" ]; then
             echo -e "${GREEN}✅ Governance denies unauthorized requests${NC}"

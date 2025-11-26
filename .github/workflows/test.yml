@@ -2,13 +2,13 @@ name: Testing
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
       - 'services/**'
       - 'governance/**'
       - '.github/workflows/test.yml'
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'services/**'
       - 'governance/**'

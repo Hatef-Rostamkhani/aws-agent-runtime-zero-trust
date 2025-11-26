@@ -60,7 +60,10 @@ func main() {
 
 	// Routes
 	router.HandleFunc("/health", handlers.HealthHandler(logger)).Methods("GET")
-	router.HandleFunc("/reason", handlers.ReasonHandler(logger)).Methods("GET")
+
+	// Check if we should skip SigV4 verification for testing
+	skipSigV4 := os.Getenv("SKIP_SIGV4") == "true"
+	router.HandleFunc("/reason", handlers.ReasonHandlerWithSigV4(logger, !skipSigV4)).Methods("GET")
 
 	port := os.Getenv("PORT")
 	if port == "" {

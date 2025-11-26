@@ -1,0 +1,24 @@
+extends: default
+
+rules:
+  # Allow longer lines for GitHub Actions
+  line-length:
+    max: 120
+    level: warning
+
+  # Allow extra blank lines in GitHub Actions workflows
+  empty-lines:
+    max-start: 2
+    max-end: 1
+    max: 3
+
+  # Disable indentation checks for GitHub Actions workflows
+  indentation: disable
+
+  # Disable document start requirement for GitHub Actions
+  document-start: disable
+
+  # Allow truthy values in GitHub Actions
+  truthy:
+    allowed-values: ['true', 'false', 'on', 'off']
+    check-keys: false

@@ -2,6 +2,12 @@
 
 set -e
 
+# Check if PROJECT_NAME is set
+if [ -z "$PROJECT_NAME" ]; then
+    PROJECT_NAME="agent-runtime"
+    echo "PROJECT_NAME not set, using default: $PROJECT_NAME"
+fi
+
 echo "Performing Security Audit..."
 
 # IAM Audit
